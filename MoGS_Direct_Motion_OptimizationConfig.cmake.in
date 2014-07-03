@@ -1,0 +1,16 @@
+# - Config file for the MoGS_Direct_Motion_Optimization lib
+# It defines the following variables
+#
+# MoGS_Direct_Motion_Optimization_INCLUDE_DIRS - include directories
+# MoGS_Direct_Motion_Optimization_LIBRARY_DIRS - library directory (normally not used!)
+# MoGS_Direct_Motion_Optimization_LIBRARIES - libraries to link against
+ 
+# Tell the user project where to find our headers and libraries
+
+SET(MoGS_Direct_Motion_Optimization_INCLUDE_DIRS  @INSTALL_INCLUDE_DIRS@ @MoGS_Problem_INCLUDE_DIRS@ @MoGS_RBDL_INCLUDE_DIRS@ @IPOPT_INCLUDE_DIRS@)
+
+SET(MoGS_Direct_Motion_Optimization_LIBRARY_DIRS @INSTALL_LIB_DIRS@ @MoGS_Problem_LIBRARY_DIRS@ @MoGS_RBDL_LIBRARY_DIRS@ @IPOPT_LIBRARY_DIRS@)
+
+SET(MoGS_Direct_Motion_Optimization_LIBRARIES MoGS_Direct_Motion_Optimization @MoGS_RBDL_LIBRARIES@ @MoGS_Problem_LIBRARIES@ @IPOPT_LIBRARIES@)
+
+SET(MoGS_Direct_Motion_Optimization_FLAGS @MoGS_Direct_Motion_Optimization_FLAGS@)
