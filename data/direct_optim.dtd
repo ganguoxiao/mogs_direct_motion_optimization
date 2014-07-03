@@ -1,0 +1,10 @@
+<!ELEMENT problem (robot, environment, solver, parameters, motion, result)>
+<!ATTLIST problem 
+	type (DirectMotionOptimization) #REQUIRED> 
+
+<!ELEMENT robot (name)>
+<!ELEMENT environments (name)>
+<!ELEMENT solver (name)>
+<!ELEMENT parameters (constraint_on_q, constraint_on_dq, coeff_dq_max, optim_motion_duration, constraint_on_torques, criteria, parallelization, integration_step)>
+<!ELEMENT motion (init_posture, final_posture, motion_duration)>
+
