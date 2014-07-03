@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<direct_optim type = "DirectMotionOptimization">
+<problem type = "DirectMotionOptimization">
     <robot>
         <!--You can add how many robots you want, by their name if they are register in the project or their URL and with their contact properties file-->
         <name>MyRobot</name>
@@ -30,4 +30,4 @@
 	  
      </motion>
      <result> </result>
-</direct_optim>
+</problem>
