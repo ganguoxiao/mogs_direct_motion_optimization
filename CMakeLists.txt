@@ -104,7 +104,7 @@ TARGET_LINK_LIBRARIES(MoGS_Direct_Motion_Optimization
 # TARGET_LINK_LIBRARIES(	test_solver
 #   		      ${IPOPT_LIBRARIES})
 
-IF (MoGS_GLOBAL_COMPILED)
+# IF (MoGS_GLOBAL_COMPILED)
   # Get tall the include directories
   GET_PROPERTY(Include_Directories DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
   GET_PROPERTY(Library_Directories DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY LINK_DIRECTORIES)
@@ -113,7 +113,7 @@ IF (MoGS_GLOBAL_COMPILED)
   SET(MoGS_Direct_Motion_Optimization_LIBRARY_DIRS "${Library_Directories}" CACHE INTERNAL "" )
   SET(MoGS_Direct_Motion_Optimization_LIBRARIES  -lMoGS_Direct_Motion_Optimization "${MoGS_RBDL_LIBRARIES} ${MoGS_Problem_LIBRARIES} ${MoGS_Motion_Capture_LIBRARIES} ${MoGS_Optimization_LIBRARIES}" CACHE INTERNAL "")
   SET(MoGS_Direct_Motion_Optimization_FLAGS "-lMoGS_Direct_Motion_Optimization_FOUND ${MoGS_RBDL_FLAGS} ${MoGS_Problem_FLAGS} ${MoGS_Motion_Capture_FLAGS} ${MoGS_Optimization_FLAGS} ${MoGS_Posture_Generator_FLAGS} ${MoGS_MathTypes_FLAGS}" CACHE INTERNAL "")
-ENDIF (MoGS_GLOBAL_COMPILED)
+# ENDIF (MoGS_GLOBAL_COMPILED)
 
 add_definitions(${MoGS_Direct_Motion_Optimization_FLAGS})
 
@@ -142,6 +142,7 @@ configure_file(MoGS_Direct_Motion_OptimizationConfig.cmake.in "${PROJECT_BINARY_
 
 set ( INSTALL_LIB_PATH lib )
 
-install ( FILES "${PROJECT_BINARY_DIR}/MoGS_Direct_Motion_OptimizationConfig.cmake"
-      DESTINATION "${INSTALL_LIB_PATH}/MoGS_Direct_Motion_Optimization" COMPONENT dev ) 
+INSTALL(FILES "${PROJECT_BINARY_DIR}/MoGS_Direct_Motion_OptimizationConfig.cmake"
+	DESTINATION "${INSTALL_LIB_PATH}/MoGS_Direct_Motion_Optimization" COMPONENT dev ) 
 
+INSTALL(CODE "execute_process(COMMAND MoGS plugins pb add DirectMotionOptimization libMoGS_Direct_Motion_Optimization.so)")
