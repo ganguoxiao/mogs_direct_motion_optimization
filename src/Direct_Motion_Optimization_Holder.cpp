@@ -646,17 +646,18 @@ void Direct_Motion_Optimization_Holder::get_result_param(const std::string resul
 
 void Direct_Motion_Optimization_Holder::update_time_result_q_result(const double *x)
 {
+	// for the moment we store only for one robot
 	int s,r,n,i,buf;
 	double t = 0;
 	q_result_.resize(nb_step_);
 	time_result_.resize(nb_step_);
 	for (s=0; s<nb_step_; ++s) {
-		for (r=0; r<nb_robots_; ++r) {
-			buf = 0;
-			for (i=0; i<r; ++i)
-				buf += nb_dofs_[i];
+		q_result_[s].resize(total_nb_dofs_);
+		int cpt = 0;
+// 		for (r=0; r<nb_robots_; ++r) {
+		for (r=0; r<1; ++r) {
 			for (n=0; n<nb_dofs_[r]; ++n) 
-				q_result_[s](buf+n) = x[it_[s][r][0][n]]; 
+				q_result_[s](cpt++) = x[it_[s][r][0][n]]; 
 		}
 		time_result_[s] = t;
 		t += integration_step_;
