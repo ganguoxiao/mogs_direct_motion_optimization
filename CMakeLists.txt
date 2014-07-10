@@ -28,19 +28,19 @@ find_package(OpenMP QUIET)
 # IF (NOT MoGS_MathTypes_FOUND)
 #   FIND_PACKAGE(MoGS_MathTypes REQUIRED MoGS_MathTypes)
 # ENDIF (NOT MoGS_MathTypes_FOUND)
-# 
-# IF (NOT MoGS_Problem_FOUND)
-#   FIND_PACKAGE(MoGS_Problem REQUIRED MoGS_Problem)
-# ENDIF (NOT MoGS_Problem_FOUND)
-# 
-# IF (NOT MoGS_RBDL_FOUND)
-#   FIND_PACKAGE(MoGS_RBDL REQUIRED MoGS_RBDL)
-# ENDIF (NOT MoGS_RBDL_FOUND)
-# 
-# IF (NOT MoGS_Optimization_FOUND)
-#   FIND_PACKAGE(MoGS_Optimization REQUIRED MoGS_Optimization)
-# ENDIF (NOT MoGS_Optimization_FOUND)
-# 
+
+IF (NOT MoGS_Problem_FOUND)
+  FIND_PACKAGE(MoGS_Problem REQUIRED MoGS_Problem)
+ENDIF (NOT MoGS_Problem_FOUND)
+
+IF (NOT MoGS_RBDL_FOUND)
+  FIND_PACKAGE(MoGS_RBDL REQUIRED MoGS_RBDL)
+ENDIF (NOT MoGS_RBDL_FOUND)
+
+IF (NOT MoGS_Optimization_FOUND)
+  FIND_PACKAGE(MoGS_Optimization REQUIRED MoGS_Optimization)
+ENDIF (NOT MoGS_Optimization_FOUND)
+
 # IF (NOT MoGS_Motion_Capture_FOUND)
 #   FIND_PACKAGE(MoGS_Motion_Capture QUIET)
 # ENDIF (NOT MoGS_Motion_Capture_FOUND)
@@ -49,24 +49,30 @@ find_package(OpenMP QUIET)
 #   FIND_PACKAGE(MoGS_Posture_Generator QUIET)
 # ENDIF (NOT MoGS_Posture_Generator_FOUND)
 
+IF (NOT MoGS_Simulator_FOUND)
+  FIND_PACKAGE(MoGS_Simulator REQUIRED MoGS_Simulator)
+ENDIF (NOT MoGS_Simulator_FOUND)
+
 INCLUDE_DIRECTORIES(	./include
 			${IPOPT_INCLUDE_DIRS}
-# 			${MoGS_Problem_INCLUDE_DIRS}
-# 			${MoGS_RBDL_INCLUDE_DIRS}
+			${MoGS_Problem_INCLUDE_DIRS}
+			${MoGS_RBDL_INCLUDE_DIRS}
 # 			${MoGS_Motion_Capture_INCLUDE_DIRS}
 # 			${MoGS_MathTypes_INCLUDE_DIRS}
-# 			${MoGS_Optimization_INCLUDE_DIRS}
+			${MoGS_Optimization_INCLUDE_DIRS}
 # 			${MoGS_Posture_Generator_INCLUDE_DIRS}
+			${MoGS_Simulator_INCLUDE_DIRS}
 )
 
 
 LINK_DIRECTORIES( ${CMAKE_BINARY_DIR}/lib/${CMAKE_BUILD_TYPE}
 		  ${IPOPT_LIBRARY_DIRS}
-# 		  ${MoGS_Problem_LIBRARY_DIRS}
-# 		  ${MoGS_RBDL_LIBRARY_DIRS}
+		  ${MoGS_Problem_LIBRARY_DIRS}
+		  ${MoGS_RBDL_LIBRARY_DIRS}
 # 		  ${MoGS_Motion_Capture_LIBRARY_DIRS}
-# 		  ${MoGS_Optimization_LIBRARY_DIRS}
+		  ${MoGS_Optimization_LIBRARY_DIRS}
 # 		  ${MoGS_Posture_Generator_LIBRARY_DIRS}
+		  ${MoGS_Simulator_LIBRARY_DIRS}
 		  )
 
 FILE(	GLOB_RECURSE
@@ -88,11 +94,12 @@ ADD_LIBRARY(MoGS_Direct_Motion_Optimization SHARED
 
 TARGET_LINK_LIBRARIES(MoGS_Direct_Motion_Optimization 
 		      ${IPOPT_LIBRARIES}
-# 		      ${MoGS_RBDL_LIBRARIES}
-# 		      ${MoGS_Problem_LIBRARIES}		      
+		      ${MoGS_RBDL_LIBRARIES}
+		      ${MoGS_Problem_LIBRARIES}		      
 # 		      ${MoGS_Motion_Capture_LIBRARIES}
-# 		      ${MoGS_Optimization_LIBRARIES}
+		      ${MoGS_Optimization_LIBRARIES}
 # 		      ${MoGS_Posture_Generator_LIBRARIES}
+		      ${MoGS_Simulator_LIBRARIES}
 	)
 
 
@@ -112,7 +119,7 @@ IF (MoGS_GLOBAL_COMPILED)
   SET(MoGS_Direct_Motion_Optimization_INCLUDE_DIRS "${Include_Directories}" CACHE INTERNAL "" )
   SET(MoGS_Direct_Motion_Optimization_LIBRARY_DIRS "${Library_Directories}" CACHE INTERNAL "" )
   SET(MoGS_Direct_Motion_Optimization_LIBRARIES  -lMoGS_Direct_Motion_Optimization "${MoGS_RBDL_LIBRARIES} ${MoGS_Problem_LIBRARIES} ${MoGS_Motion_Capture_LIBRARIES} ${MoGS_Optimization_LIBRARIES}" CACHE INTERNAL "")
-  SET(MoGS_Direct_Motion_Optimization_FLAGS "-lMoGS_Direct_Motion_Optimization_FOUND ${MoGS_RBDL_FLAGS} ${MoGS_Problem_FLAGS} ${MoGS_Motion_Capture_FLAGS} ${MoGS_Optimization_FLAGS} ${MoGS_Posture_Generator_FLAGS} ${MoGS_MathTypes_FLAGS}" CACHE INTERNAL "")
+  SET(MoGS_Direct_Motion_Optimization_FLAGS "-lMoGS_Direct_Motion_Optimization_FOUND ${MoGS_RBDL_FLAGS} ${MoGS_Problem_FLAGS} ${MoGS_Motion_Capture_FLAGS} ${MoGS_Optimization_FLAGS} ${MoGS_Posture_Generator_FLAGS} ${MoGS_MathTypes_FLAGS} ${MoGS_Simulator_FLAGS} " CACHE INTERNAL "")
 ENDIF (MoGS_GLOBAL_COMPILED)
 
 add_definitions(${MoGS_Direct_Motion_Optimization_FLAGS})
