@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<problem type="DirectMotionOptimization">
+    <robot>
+        <!-- You can add how many robots you want, by their name if they are register -->
+        <!-- in the project or their URL and with their contact properties file-->
+        <name>Hope_ax</name>
+    </robot>
+    <environment>
+        <!-- You can add environment files (for the moment it will be used only -->
+        <!-- for the visualization but futures works will used it for collisions -->
+        <name>floor</name>
+    </environment>
+    <solver>
+        <!--For the moment we can use only the IPOPT solver.-->
+        <name>IPOPT</name>
+        <!-- option = "name" in string -->
+        <!-- type = (integer|double|string) -->
+        <options option="derivative_test" type="string"> first-order </options>
+        <!-- je ne sais pas quoi mettre pour l'instant -->
+    </solver>
+    <parameters>
+        <constraint_on_q>yes</constraint_on_q>
+        <!-- (yes|no) -->
+        <constraint_on_dq>yes</constraint_on_dq>
+        <!-- (yes|no) -->
+        <coeff_dq_max>1.0</coeff_dq_max>
+        <optim_motion_duration>no</optim_motion_duration>
+        <!-- for the moment no -->
+        <constraint_on_torques>no</constraint_on_torques>
+        <!-- for the moment no -->
+        <criteria>energy</criteria>
+        <!-- (none|energy|jerk|fitting) -->
+        <parallelization>no_thread</parallelization>
+        <!-- (no_thread|multi_thread) -->
+        <integration_step> 0.1 </integration_step>
+    </parameters>
+    <motion>
+        <init_posture> 0 0 1 0 0 0 0 0 0 </init_posture>
+        <final_posture> 0 0 0.3init_rot[0] =  0 0 0 0 0 0 </final_posture>
+        <motion_duration> 1.0 </motion_duration>
+    </motion>
+    <results>
+        <result>
+            <result_name>toto</result_name>
+            <date>Wed Jul  9 11:46:15 2014
+</date>
+            <nbparam>360</nbparam>
+            <param>0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.93000000000000004885 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.85999999999999998668 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.79000000000000003553 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.71999999999999997335 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.6500000000000000222 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.58000000000000007105 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.51000000000000000888 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.44000000000000005773 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.36999999999999999556 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 </param>
+            <q time="0.000000">0 0 1 0 0 0 0 0 0 </q>
+            <q time="0.100000">0 0 0.93 0 0 0 0 0 0 </q>
+            <q time="0.200000">0 0 0.86 0 0 0 0 0 0 </q>
+            <q time="0.300000">0 0 0.79 0 0 0 0 0 0 </q>
+            <q time="0.400000">0 0 0.72 0 0 0 0 0 0 </q>
+            <q time="0.500000">0 0 0.65 0 0 0 0 0 0 </q>
+            <q time="0.600000">0 0 0.58 0 0 0 0 0 0 </q>
+            <q time="0.700000">0 0 0.51 0 0 0 0 0 0 </q>
+            <q time="0.800000">0 0 0.44 0 0 0 0 0 0 </q>
+        </result>
+    </results>
+</problem>

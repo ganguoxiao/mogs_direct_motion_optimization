@@ -1,17 +1,22 @@
-<!ELEMENT problem (robot, environment, solver, parameters, motion, result)>
+<!ELEMENT problem (robot, environment, solver, parameters, motion, results)>
 <!ATTLIST problem 
 	type (DirectMotionOptimization) #REQUIRED> 
 
 <!ELEMENT robot (name)>
-<!ELEMENT name (#PCDATA)>
-
-<!ELEMENT environments (name)>
-<!ELEMENT name (#PCDATA)>
-
-<!ELEMENT solver (name)>
-<!ELEMENT name (#PCDATA)>
-
+<!ELEMENT environment (name)>
+<!ELEMENT solver (name, options?)>
 <!ELEMENT parameters (constraint_on_q, constraint_on_dq, coeff_dq_max, optim_motion_duration, constraint_on_torques, criteria, parallelization, integration_step)>
+<!ELEMENT motion (init_posture, final_posture, motion_duration)>
+<!ELEMENT results (result*)>
+
+<!ELEMENT result (result_name,date,nbparam, param,q*) >
+
+<!ELEMENT name (#PCDATA)>
+<!ELEMENT options (#PCDATA) >
+<!ATTLIST options
+	option CDATA #REQUIRED
+	type CDATA #REQUIRED>
+	
 <!ELEMENT constraint_on_q (#PCDATA)>
 <!ELEMENT constraint_on_dq (#PCDATA)>
 <!ELEMENT coeff_dq_max (#PCDATA)>
@@ -20,16 +25,13 @@
 <!ELEMENT criteria (#PCDATA)>
 <!ELEMENT parallelization (#PCDATA)>
 <!ELEMENT integration_step (#PCDATA)>
-
-<!ELEMENT motion (init_posture, final_posture, motion_duration)>
 <!ELEMENT init_posture (#PCDATA)>
 <!ELEMENT final_posture (#PCDATA)>
 <!ELEMENT motion_duration (#PCDATA)>
-
-<!ELEMENT results (result*)>
-<!ELEMENT result (result_name,date,q*) >
 <!ELEMENT result_name (#PCDATA)>
 <!ELEMENT date (#PCDATA)>
+<!ELEMENT nbparam (#PCDATA)>
+<!ELEMENT param (#PCDATA)>
 <!ELEMENT q (#PCDATA)>
 <!ATTLIST q 
 	time CDATA #REQUIRED>
