@@ -606,21 +606,11 @@ double Direct_Motion_Optimization_Holder::get_duration(std::vector<double> param
 	return (time_result_[ time_result_.size() -1]);
 }
 
-#ifdef MoGS_Motion_Capture_FOUND
 bool Direct_Motion_Optimization_Holder::do_you_need_Motion_Capture()
 {
 	// do nothing
 	return false;
 }
-#endif
-
-#ifdef MoGS_Contact_FOUND
-bool Direct_Motion_Optimization_Holder::do_you_need_contact()
-{
-	// do nothing
-	return false;
-}
-#endif
 
 void Direct_Motion_Optimization_Holder::get_result_param(const std::string result_name, std::vector<double> &param)
 {

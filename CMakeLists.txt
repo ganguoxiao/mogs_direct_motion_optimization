@@ -25,11 +25,11 @@ IF (NOT MoGS_Project_FOUND)
 ENDIF (NOT MoGS_Project_FOUND)
 
 IF (NOT MoGS_Optimization_FOUND)
-  FIND_PACKAGE(MoGS_Optimization REQUIRED MoGS_Optimization)
+  FIND_PACKAGE(MoGS_Optimization REQUIRED)
 ENDIF (NOT MoGS_Optimization_FOUND)
 
 IF (NOT MoGS_Simulator_FOUND)
-  FIND_PACKAGE(MoGS_Simulator REQUIRED MoGS_Simulator)
+  FIND_PACKAGE(MoGS_Simulator REQUIRED)
 ENDIF (NOT MoGS_Simulator_FOUND)
 
 INCLUDE_DIRECTORIES(	./include
@@ -68,6 +68,8 @@ TARGET_LINK_LIBRARIES(MoGS_Direct_Motion_Optimization
 		      ${MoGS_Optimization_LIBRARIES}
 		      ${MoGS_Simulator_LIBRARIES}
 	)
+	
+	message("MoGS_Project_LIBRARIES = " ${MoGS_Project_LIBRARIES})
 
 
 # Get tall the include directories

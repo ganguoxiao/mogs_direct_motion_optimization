@@ -92,13 +92,7 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	
 	double get_duration(std::vector<double> param);
 	
-#ifdef MoGS_Motion_Capture_FOUND
 	bool do_you_need_Motion_Capture();
-#endif
-	
-#ifdef MoGS_Contact_FOUND
-	bool do_you_need_contact();
-#endif
 
 	// non virtual functions          
 	void get_result_param(const std::string result_name, std::vector<double> &param); 
