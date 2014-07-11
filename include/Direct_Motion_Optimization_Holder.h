@@ -28,6 +28,10 @@
 
 #include "fadiff.h"
 
+template < typename D_FD >
+void cast_to(	RigidBodyDynamics::SpatialTransform<F<double> > &body,
+		RigidBodyDynamics::SpatialTransform<double> &dbody);
+
 class Direct_Motion_Optimization_Holder:public Optimization_Holder
 {
       public:
@@ -135,8 +139,8 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	Dynamics_Integrate<double> *dyn_integrate_;
 	std::vector<Eigen::Matrix <double,Eigen::Dynamic,1> > q_, dq_, ddq_, torque_;
 	
-// 	std::vector<RigidBodyDynamics::Dynamics<F<double> > > FDyn_;
-// 	Dynamics_Integrate<F<double> > *Fdyn_integrate_;
+	std::vector<RigidBodyDynamics::Dynamics<F<double> > > FDyn_;
+	Dynamics_Integrate<F<double> > *Fdyn_integrate_;
 	std::vector<Eigen::Matrix <F<double>,Eigen::Dynamic,1> > Fq_, Fdq_, Fddq_, Ftorque_;
 	
 	// stock results
