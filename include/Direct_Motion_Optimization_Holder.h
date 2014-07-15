@@ -28,7 +28,7 @@
 
 #include "fadiff.h"
 
-template < typename D_FD >
+
 void cast_to(	RigidBodyDynamics::SpatialTransform<F<double> > &body,
 		RigidBodyDynamics::SpatialTransform<double> &dbody);
 
@@ -191,7 +191,7 @@ void integrate_bidon(std::vector< Eigen::Matrix< TT, Eigen::Dynamic, 1> > &q_,
 {
 	int r, n;
 	for (r=0;r<q_.size();++r) {
-		for (n=0;n<q_[r].size();++n) { // parce que neufneuf !
+		for (n=0;n<q_[r].size();++n) { 
 			q_[r](n) += dq_[r](n) * eps;
 			dq_[r](n) += ddq_[r](n) * eps;
 		}

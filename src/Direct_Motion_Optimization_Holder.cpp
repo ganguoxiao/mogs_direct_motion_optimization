@@ -23,24 +23,6 @@
 #include "Direct_Motion_Optimization_Holder.h"
 
 
-void cast_to(	RigidBodyDynamics::SpatialTransform<F<double> > &body,
-		RigidBodyDynamics::SpatialTransform<double> &dbody)
-{
-		int i, j;
-		F<double> tmp;
-		for (i=0; i<3; ++i) for (j=0;j<3;++j) { // cast rotation
-			tmp = body.E(i,j);
-			tmp.diff(0,1);
-			dbody.E(i,j) = tmp.x();
-		}
-		for (i=0; i<3; ++i) {                  // cast position
-			tmp = body.r(i);
-			tmp.diff(0,1);
-			dbody.r(i) = tmp.x();
-		}
-}
-
-
 /**
 	                   how informations are stored in IPOPT vector x
 	|-------------------------------------------------------------------------------|
@@ -422,8 +404,8 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 				torque_[r][n] = x[it_[s][r][3][n]];
 			}
 		}
-// 		dyn_integrate_->integrate(q_, dq_, ddq_, torque_, integration_step_); 
-		integrate_bidon<double>(q_, dq_, ddq_, torque_, integration_step_);
+		dyn_integrate_->integrate(q_, dq_, ddq_, torque_, integration_step_); 
+// 		integrate_bidon<double>(q_, dq_, ddq_, torque_, integration_step_);
 		for (r=0; r<nb_robots_; ++r) {
 			for (n=0; n<nb_dofs_[r]; ++n) {                        
 				g[cpt_g++] = q_[r][n] - x[it_[s+1][r][0][n]]; 
@@ -483,8 +465,8 @@ void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x
 			}
 		}
 		cpt_diff_max = cpt_diff;
-// 		Fdyn_integrate_->integrate(Fq_, Fdq_, Fddq_, Ftorque_, integration_step_); 
-		integrate_bidon<F<double> >(Fq_, Fdq_, Fddq_, Ftorque_, integration_step_);
+		Fdyn_integrate_->integrate(Fq_, Fdq_, Fddq_, Ftorque_, integration_step_); 
+// 		integrate_bidon<F<double> >(Fq_, Fdq_, Fddq_, Ftorque_, integration_step_);
 		for (r=0; r<nb_robots_; ++r) {
 			for (n=0; n<nb_dofs_[r]; ++n)
 			{
