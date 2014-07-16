@@ -139,6 +139,9 @@ void Direct_Motion_Optimization_Holder::initialize ()
 {
 	problem_init(); 
 	
+	env_->setXml(Environment_xml_);	
+	env_->loadXml();
+	
 	std::cout << "init_posture_.size() : " << init_posture_.size() << std::endl;
 	std::cout << "final_posture_.size() : " << final_posture_.size() << std::endl;
 	
@@ -153,7 +156,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 		exit(-1);
 	}
 	
-	nb_step_ = ceil(motion_duration_ / integration_step_);
+	nb_step_ = ceil(motion_duration_ / integration_step_) + 1;
 	std::cout << "nb_step_ = " << nb_step_ << std::endl;
 	
 	nb_param_ = nb_step_ * total_nb_dofs_ * 4; // set nb_param_

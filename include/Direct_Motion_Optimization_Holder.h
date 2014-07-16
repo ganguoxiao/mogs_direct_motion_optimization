@@ -29,8 +29,7 @@
 #include "fadiff.h"
 
 
-void cast_to(	RigidBodyDynamics::SpatialTransform<F<double> > &body,
-		RigidBodyDynamics::SpatialTransform<double> &dbody);
+
 
 class Direct_Motion_Optimization_Holder:public Optimization_Holder
 {
