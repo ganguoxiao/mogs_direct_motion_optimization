@@ -124,10 +124,15 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	// motion
 	std::vector<double> init_posture_;
 	std::vector<double> final_posture_;
+	std::vector<double> init_velocity_;
+	std::vector<double> final_velocity_;
 	double motion_duration_;
+	
+	bool cyclic_motion_;
 
 	// iterators
 	std::vector<std::vector<std::vector<std::vector<int> > > > it_, git_;
+	std::vector<std::vector<int> > pit_;
 	
 	// others
 	double nb_step_;
