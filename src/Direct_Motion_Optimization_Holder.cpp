@@ -652,58 +652,77 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 	// print q
 	for(int i=0;i<nb_step_;i++)
 	{
+// 		tinyxml2::XMLElement * Elvalue = doc_.NewElement ("q");
+// 		Elvalue->SetAttribute("time",integration_step_ * i);
+// 		std::ostringstream oss_q;
+// 		for (int j=0; j< total_nb_dofs_; ++j)
+// 			oss_q << q_result_[i](j) << " ";
+// 		std::string s1 = oss_q.str();
+// 		tinyxml2::XMLText *Elq = doc_.NewText ( s1.c_str());
+// 		Elvalue->InsertEndChild (Elq);
+// 		result->InsertEndChild (Elvalue);		
 		tinyxml2::XMLElement * Elvalue = doc_.NewElement ("q");
 		Elvalue->SetAttribute("time",integration_step_ * i);
-		std::ostringstream oss_q;
-		for (int j=0; j< total_nb_dofs_; ++j)
-			oss_q << q_result_[i](j) << " ";
-		std::string s1 = oss_q.str();
-		tinyxml2::XMLText *Elq = doc_.NewText ( s1.c_str());
-		Elvalue->InsertEndChild (Elq);
-		result->InsertEndChild (Elvalue);
+		for (int k=0; k < nb_robots_; k++)
+		{
+			std::ostringstream oss_q;
+
+// 					oss_q << q[k](j)<<" ";
+			if ( k ==0)	// FIXME for the moment only one robot
+				for (int j=0;j<nb_dofs_[k];j++)
+					oss_q << q_result_[i](j)<<" ";
+
+			tinyxml2::XMLElement *xml_q = doc_.NewElement ("Qrobot");
+			xml_q->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
+			tinyxml2::XMLText *xml_text = doc_.NewText ( oss_q.str().c_str());
+			xml_q->InsertEndChild (xml_text);
+			Elvalue->InsertEndChild (xml_q);
+		}                                
+		
+		result->InsertEndChild (Elvalue);  
 	};
 	
-	// print dq
-	for(int i=0;i<nb_step_;i++)
-	{
-		tinyxml2::XMLElement * Elvaluedq = doc_.NewElement ("dq");
-		Elvaluedq->SetAttribute("time",integration_step_ * i);
-		std::ostringstream oss_dq;
-		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
-			oss_dq << x[it_[i][r][1][j]] << " ";
-		std::string s1 = oss_dq.str();
-		tinyxml2::XMLText *Eldq = doc_.NewText ( s1.c_str());
-		Elvaluedq->InsertEndChild (Eldq);
-		result->InsertEndChild (Elvaluedq);
-	};
-	
-	// print ddq
-	for(int i=0;i<nb_step_;i++)
-	{
-		tinyxml2::XMLElement * Elvalueddq = doc_.NewElement ("ddq");
-		Elvalueddq->SetAttribute("time",integration_step_ * i);
-		std::ostringstream oss_ddq;
-		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
-			oss_ddq << x[it_[i][r][2][j]] << " ";
-		std::string s1 = oss_ddq.str();
-		tinyxml2::XMLText *Elddq = doc_.NewText ( s1.c_str());
-		Elvalueddq->InsertEndChild (Elddq);
-		result->InsertEndChild (Elvalueddq);
-	};
-	
-	// print tau
-	for(int i=0;i<nb_step_;i++)
-	{
-		tinyxml2::XMLElement * Elvaluetau = doc_.NewElement ("tau");
-		Elvaluetau->SetAttribute("time",integration_step_ * i);
-		std::ostringstream oss_tau;
-		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
-			oss_tau << x[it_[i][r][3][j]] << " ";
-		std::string s1 = oss_tau.str();
-		tinyxml2::XMLText *Eltau = doc_.NewText ( s1.c_str());
-		Elvaluetau->InsertEndChild (Eltau);
-		result->InsertEndChild (Elvaluetau);
-	};
+// 	// print dq
+// 	for(int i=0;i<nb_step_;i++)
+// 	{
+// 		tinyxml2::XMLElement * Elvaluedq = doc_.NewElement ("dq");
+// 		Elvaluedq->SetAttribute("time",integration_step_ * i);
+// 		std::ostringstream oss_dq;
+// 		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
+// 			oss_dq << x[it_[i][r][1][j]] << " ";
+// 		std::string s1 = oss_dq.str();
+// 		tinyxml2::XMLText *Eldq = doc_.NewText ( s1.c_str());
+// 		Elvaluedq->InsertEndChild (Eldq);
+// 		result->InsertEndChild (Elvaluedq);
+// 	};
+// 	
+// 	// print ddq
+// 	for(int i=0;i<nb_step_;i++)
+// 	{
+// 		tinyxml2::XMLElement * Elvalueddq = doc_.NewElement ("ddq");
+// 		Elvalueddq->SetAttribute("time",integration_step_ * i);
+// 		std::ostringstream oss_ddq;
+// 		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
+// 			oss_ddq << x[it_[i][r][2][j]] << " ";
+// 		std::string s1 = oss_ddq.str();
+// 		tinyxml2::XMLText *Elddq = doc_.NewText ( s1.c_str());
+// 		Elvalueddq->InsertEndChild (Elddq);
+// 		result->InsertEndChild (Elvalueddq);
+// 	};
+// 	
+// 	// print tau
+// 	for(int i=0;i<nb_step_;i++)
+// 	{
+// 		tinyxml2::XMLElement * Elvaluetau = doc_.NewElement ("tau");
+// 		Elvaluetau->SetAttribute("time",integration_step_ * i);
+// 		std::ostringstream oss_tau;
+// 		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
+// 			oss_tau << x[it_[i][r][3][j]] << " ";
+// 		std::string s1 = oss_tau.str();
+// 		tinyxml2::XMLText *Eltau = doc_.NewText ( s1.c_str());
+// 		Elvaluetau->InsertEndChild (Eltau);
+// 		result->InsertEndChild (Elvaluetau);
+// 	};
 	
 	results->InsertEndChild (result);
 	doc_.SaveFile (xml_problem_filename_.c_str() );

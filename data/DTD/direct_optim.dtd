@@ -35,10 +35,19 @@
 <!ELEMENT date (#PCDATA)>
 <!ELEMENT nbparam (#PCDATA)>
 <!ELEMENT param (#PCDATA)>
-<!ELEMENT q (#PCDATA)>
+
+<!ELEMENT q (Qrobot*)>
+<!ATTLIST q
+    time CDATA #REQUIRED>
+    
+<!ELEMENT Qrobot (#PCDATA)>
+<!ATTLIST Qrobot
+    name CDATA #REQUIRED>
+
+<!--<!ELEMENT q (#PCDATA)>
 <!ATTLIST q 
-	time CDATA #REQUIRED>
-<!ELEMENT dq (#PCDATA)>
+	time CDATA #REQUIRED>-->
+<!--<!ELEMENT dq (#PCDATA)>
 <!ATTLIST dq 
 	time CDATA #REQUIRED>
 <!ELEMENT ddq (#PCDATA)>
@@ -46,4 +55,4 @@
 	time CDATA #REQUIRED>
 <!ELEMENT tau (#PCDATA)>
 <!ATTLIST tau 
-	time CDATA #REQUIRED>
+	time CDATA #REQUIRED>-->
