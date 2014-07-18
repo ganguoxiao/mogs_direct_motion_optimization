@@ -114,25 +114,43 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 		}
 		final_posture_.pop_back();
 	}
+	velocity_init_zero_ = false;
 	tinyxml2::XMLElement * ElInit_Velocity = ElMotion->FirstChildElement ("init_velocity");
 	if (ElInit_Velocity)
 	{
-		std::istringstream iss (char_to_string (ElInit_Velocity->GetText ()), std::ios_base::in);
-		while (iss) {
-			iss >> tmp;
-			init_velocity_.push_back(tmp);
+		std::string str_tmp = ElInit_Velocity->GetText();
+		if (str_tmp.compare("none") == 0)
+		{} // do nothing
+		else if (str_tmp.compare("zero") == 0)
+			velocity_init_zero_ = true;
+		else
+		{
+			std::istringstream iss (str_tmp, std::ios_base::in);
+			while (iss) {
+				iss >> tmp;
+				init_velocity_.push_back(tmp);
+			}
+			init_velocity_.pop_back();
 		}
-		init_velocity_.pop_back();
 	}
+	velocity_final_zero_ = false;
 	tinyxml2::XMLElement * ElFinal_Velocity = ElMotion->FirstChildElement ("final_velocity");
 	if (ElFinal_Velocity)
 	{
-		std::istringstream iss (char_to_string (ElFinal_Velocity->GetText ()), std::ios_base::in);
-		while (iss) {
-			iss >> tmp;
-			final_velocity_.push_back(tmp);
+		std::string str_tmp = ElFinal_Velocity->GetText();
+		if (str_tmp.compare("none") == 0)
+		{} // do nothing
+		else if (str_tmp.compare("zero") == 0)
+			velocity_final_zero_ = true;
+		else
+		{
+			std::istringstream iss (str_tmp, std::ios_base::in);
+			while (iss) {
+				iss >> tmp;
+				final_velocity_.push_back(tmp);
+			}
+			final_velocity_.pop_back();
 		}
-		final_velocity_.pop_back();
 	}
 	tinyxml2::XMLElement * ElConstraint_cm = ElMotion->FirstChildElement ("cyclic_motion");
 	cyclic_motion_ = string_to_bool("cyclic_motion", ElConstraint_cm->GetText());
@@ -166,8 +184,24 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	
 	std::cout << "init_posture_.size() : " << init_posture_.size() << std::endl;
 	std::cout << "final_posture_.size() : " << final_posture_.size() << std::endl;
-	std::cout << "init_velocity_.size() : " << init_velocity_.size() << std::endl;
-	std::cout << "final_velocity_.size() : " << final_velocity_.size() << std::endl;
+	if (velocity_init_zero_)
+		std::cout << "velocity_init_zero_ : " << velocity_init_zero_ << std::endl;
+	else 
+	{
+		std::cout << "init_velocity_ : ";
+		for (int i=0; i<init_velocity_.size();++i)
+			std::cout << init_velocity_[i] << " ";
+		std::cout << std::endl;
+	}
+	if (velocity_final_zero_) 
+		std::cout << "velocity_final_zero_ : " << velocity_final_zero_ << std::endl;
+	else
+	{
+		std::cout << "final_velocity_ : ";
+		for (int i=0; i<final_velocity_.size();++i)
+			std::cout << final_velocity_[i] << " ";
+		std::cout << std::endl;
+	}
 	
 	total_nb_dofs_ = 0;
 	for (int i = 0; i < nb_dofs_.size(); ++i) 
@@ -181,7 +215,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 		exit(-1);
 	}
 	
-	if ((init_velocity_.size() > 0 || final_velocity_.size() > 0) && (init_velocity_.size() != total_nb_dofs_ || final_velocity_.size() != total_nb_dofs_))
+	if ((init_velocity_.size() > 0 && init_velocity_.size() != total_nb_dofs_) || (final_velocity_.size() > 0 && final_velocity_.size() != total_nb_dofs_))
 	{
 		std::cout << "Error when loading initial or final velocity in xml problem file : wrong arity" << std::endl;
 		exit(-1);
@@ -210,6 +244,8 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	
 	// print some informations
 	std::cout << "cyclic_motion_ = " << cyclic_motion_ << std::endl;
+	// FIXME DO cyclic motion by adding constraints and modify all IPOPT functions....
+	
 	
 	// create Dyn_ and dyn_integrate for double
 	Dyn_.resize(nb_robots_);
@@ -336,15 +372,18 @@ int Direct_Motion_Optimization_Holder::pit(int robot, int nbdof)
 
 void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_u, double *g_l, double *g_u)
 {
-// 	x.size() = nb_param_
 	int r,s,n,i;
+	
+	// x.size() = nb_param_
 	std::vector<double> p_l, p_u, v_u, t_u; 
-	for (r=0;r<nb_robots_;++r) {                    // for all robots
+	for (r=0;r<nb_robots_;++r) {                 
 		Robots_[r]->getPositionLimit(p_l, p_u);
 		Robots_[r]->getVelocityLimit(v_u);
 		Robots_[r]->getTorqueLimit(t_u);
-		for (s=0; s<nb_step_; ++s) {                // for all steps
-			for (n=0; n<nb_dofs_[r]; ++n) {     // for all nb_dofs
+		for (s=0; s<nb_step_; ++s) for (n=0; n<nb_dofs_[r]; ++n) 
+		{   
+			if (Robots_[r]->is_robot_floating_base() || n >= 6 ) 
+			{
 				x_l[it_[s][r][0][n]] = p_l[n];  // set bounds for q
 				x_u[it_[s][r][0][n]] = p_u[n];    
 				x_l[it_[s][r][1][n]] = -v_u[n]; // set bounds for dq       
@@ -354,18 +393,61 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 				x_l[it_[s][r][3][n]] = -t_u[n]; // set bounds for torque
 				x_u[it_[s][r][3][n]] = t_u[n];
 			}
+			else 
+			{
+				x_l[it_[s][r][0][n]] = init_posture_[pit_[r][n]]; // set bounds for q
+				x_u[it_[s][r][0][n]] = init_posture_[pit_[r][n]];    
+				x_l[it_[s][r][1][n]] = 0;       // set bounds for dq       
+				x_u[it_[s][r][1][n]] = 0;
+				x_l[it_[s][r][2][n]] = 0;       // set bounds for ddq
+				x_u[it_[s][r][2][n]] = 0;
+				x_l[it_[s][r][3][n]] = 0;       // set bounds for torque
+				x_u[it_[s][r][3][n]] = 0;  
+			}
 		}
 	}
-	// fixe first and last step for q
-	for (r=0;r<nb_robots_;++r)
-		for (n=0; n<nb_dofs_[r]; ++n) {
+	// fixe first and last step for q and dq
+	for (r=0;r<nb_robots_;++r) for (n=0; n<nb_dofs_[r]; ++n) 
+	{
+		// q
+		if (Robots_[r]->is_robot_floating_base() || n >= 6)
+		{
 			x_l[it_[0][r][0][n]] = init_posture_[pit_[r][n]];  // set bounds for q init
 			x_u[it_[0][r][0][n]] = init_posture_[pit_[r][n]];    
 			x_l[it_[nb_step_-1][r][0][n]] = final_posture_[pit_[r][n]];  // set bounds for q last
 			x_u[it_[nb_step_-1][r][0][n]] = final_posture_[pit_[r][n]];    
 		}
+		
+		// dq
+		if (init_velocity_.size() > 0) // velocity : specified
+		{
+			if (Robots_[r]->is_robot_floating_base() || n >= 6)
+			{
+				x_l[it_[0][r][1][n]] = init_velocity_[pit_[r][n]];  // set bounds for dq init
+				x_u[it_[0][r][1][n]] = init_velocity_[pit_[r][n]];    
+				x_l[it_[nb_step_-1][r][1][n]] = final_velocity_[pit_[r][n]];  // set bounds for dq last
+				x_u[it_[nb_step_-1][r][1][n]] = final_velocity_[pit_[r][n]];    
+			}
+		}
+		else // velocity : zero
+		{
+			if (Robots_[r]->is_robot_floating_base() || n >= 6)
+			{
+				if (velocity_init_zero_) {
+					x_l[it_[0][r][1][n]] = 0;  // set bounds for dq init
+					x_u[it_[0][r][1][n]] = 0;    
+				}
+				if (velocity_final_zero_) {
+					x_l[it_[nb_step_-1][r][1][n]] = 0;  // set bounds for dq last
+					x_u[it_[nb_step_-1][r][1][n]] = 0;    
+				}
+			}
+		} // velocity none
+	}
+	
 	// g.size() = nb_ctr_
-	for (i=0;i<nb_ctr_;++i) {
+	for (i=0;i<nb_ctr_;++i) 
+	{
 		g_l[i] = 0.;
 		g_u[i] = 0.;
 	}

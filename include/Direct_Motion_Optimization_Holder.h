@@ -127,6 +127,8 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	std::vector<double> init_velocity_;
 	std::vector<double> final_velocity_;
 	double motion_duration_;
+	bool velocity_init_zero_;
+	bool velocity_final_zero_;
 	
 	bool cyclic_motion_;
 
