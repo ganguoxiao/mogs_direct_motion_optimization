@@ -382,27 +382,22 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 		Robots_[r]->getTorqueLimit(t_u);
 		for (s=0; s<nb_step_; ++s) for (n=0; n<nb_dofs_[r]; ++n) 
 		{   
-			if (Robots_[r]->is_robot_floating_base() || n >= 6 ) 
+			x_l[it_[s][r][0][n]] = p_l[n];  // set bounds for q
+			x_u[it_[s][r][0][n]] = p_u[n];    
+			x_l[it_[s][r][1][n]] = -v_u[n]; // set bounds for dq       
+			x_u[it_[s][r][1][n]] = v_u[n];
+			x_l[it_[s][r][2][n]] = -1e20;   // set bounds for ddq
+			x_u[it_[s][r][2][n]] = 1e20;
+			
+			if (Robots_[r]->is_robot_floating_base() && n < 6 ) 
 			{
-				x_l[it_[s][r][0][n]] = p_l[n];  // set bounds for q
-				x_u[it_[s][r][0][n]] = p_u[n];    
-				x_l[it_[s][r][1][n]] = -v_u[n]; // set bounds for dq       
-				x_u[it_[s][r][1][n]] = v_u[n];
-				x_l[it_[s][r][2][n]] = -1e20;   // set bounds for ddq
-				x_u[it_[s][r][2][n]] = 1e20;
-				x_l[it_[s][r][3][n]] = -t_u[n]; // set bounds for torque
-				x_u[it_[s][r][3][n]] = t_u[n];
+				x_l[it_[s][r][3][n]] = 0;       // set bounds for torque
+				x_u[it_[s][r][3][n]] = 0;  
 			}
 			else 
 			{
-				x_l[it_[s][r][0][n]] = init_posture_[pit_[r][n]]; // set bounds for q
-				x_u[it_[s][r][0][n]] = init_posture_[pit_[r][n]];    
-				x_l[it_[s][r][1][n]] = 0;       // set bounds for dq       
-				x_u[it_[s][r][1][n]] = 0;
-				x_l[it_[s][r][2][n]] = 0;       // set bounds for ddq
-				x_u[it_[s][r][2][n]] = 0;
-				x_l[it_[s][r][3][n]] = 0;       // set bounds for torque
-				x_u[it_[s][r][3][n]] = 0;  
+				x_l[it_[s][r][3][n]] = -t_u[n]; // set bounds for torque
+				x_u[it_[s][r][3][n]] = t_u[n];
 			}
 		}
 	}
@@ -410,37 +405,28 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 	for (r=0;r<nb_robots_;++r) for (n=0; n<nb_dofs_[r]; ++n) 
 	{
 		// q
-		if (Robots_[r]->is_robot_floating_base() || n >= 6)
-		{
-			x_l[it_[0][r][0][n]] = init_posture_[pit_[r][n]];  // set bounds for q init
-			x_u[it_[0][r][0][n]] = init_posture_[pit_[r][n]];    
-			x_l[it_[nb_step_-1][r][0][n]] = final_posture_[pit_[r][n]];  // set bounds for q last
-			x_u[it_[nb_step_-1][r][0][n]] = final_posture_[pit_[r][n]];    
-		}
+		x_l[it_[0][r][0][n]] = init_posture_[pit_[r][n]];  // set bounds for q init
+		x_u[it_[0][r][0][n]] = init_posture_[pit_[r][n]];    
+		x_l[it_[nb_step_-1][r][0][n]] = final_posture_[pit_[r][n]];  // set bounds for q last
+		x_u[it_[nb_step_-1][r][0][n]] = final_posture_[pit_[r][n]];    
 		
 		// dq
 		if (init_velocity_.size() > 0) // velocity : specified
 		{
-			if (Robots_[r]->is_robot_floating_base() || n >= 6)
-			{
-				x_l[it_[0][r][1][n]] = init_velocity_[pit_[r][n]];  // set bounds for dq init
-				x_u[it_[0][r][1][n]] = init_velocity_[pit_[r][n]];    
-				x_l[it_[nb_step_-1][r][1][n]] = final_velocity_[pit_[r][n]];  // set bounds for dq last
-				x_u[it_[nb_step_-1][r][1][n]] = final_velocity_[pit_[r][n]];    
-			}
+			x_l[it_[0][r][1][n]] = init_velocity_[pit_[r][n]];  // set bounds for dq init
+			x_u[it_[0][r][1][n]] = init_velocity_[pit_[r][n]];    
+			x_l[it_[nb_step_-1][r][1][n]] = final_velocity_[pit_[r][n]];  // set bounds for dq last
+			x_u[it_[nb_step_-1][r][1][n]] = final_velocity_[pit_[r][n]];    
 		}
 		else // velocity : zero
 		{
-			if (Robots_[r]->is_robot_floating_base() || n >= 6)
-			{
-				if (velocity_init_zero_) {
-					x_l[it_[0][r][1][n]] = 0;  // set bounds for dq init
-					x_u[it_[0][r][1][n]] = 0;    
-				}
-				if (velocity_final_zero_) {
-					x_l[it_[nb_step_-1][r][1][n]] = 0;  // set bounds for dq last
-					x_u[it_[nb_step_-1][r][1][n]] = 0;    
-				}
+			if (velocity_init_zero_) {
+				x_l[it_[0][r][1][n]] = 0;  // set bounds for dq init
+				x_u[it_[0][r][1][n]] = 0;    
+			}
+			if (velocity_final_zero_) {
+				x_l[it_[nb_step_-1][r][1][n]] = 0;  // set bounds for dq last
+				x_u[it_[nb_step_-1][r][1][n]] = 0;    
 			}
 		} // velocity none
 	}
