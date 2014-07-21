@@ -255,37 +255,15 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	
 	// create Dyn_ and dyn_integrate for double
 	Dyn_.resize(nb_robots_);
-	// FIXME add in xml file init pos and init rot
-	Eigen::Matrix< double, 3, 1> init_pos, init_rot;
 	for (int r=0;r<nb_robots_;++r)
-	{
-		Dyn_[r].SetRobotXml(Robot_xml_[r]);
-		init_pos[0] = init_posture_[pit(r,0)];
-		init_pos[1] = init_posture_[pit(r,1)];
-		init_pos[2] = init_posture_[pit(r,2)];
-		init_rot[0] = init_posture_[pit(r,3)];
-		init_rot[1] = init_posture_[pit(r,4)];
-		init_rot[2] = init_posture_[pit(r,5)];
-		if (!Dyn_[r].is_free_floating_base())
-			Dyn_[r].set_root_transformation( init_pos, init_rot);
-	}
+		Dyn_[r].SetRobot(Robots_[r]);
+
 	dyn_integrate_ = new Dynamics_Integrate<double>(nb_robots_, *env_, Dyn_);
 
 	// create Dyn_ and dyn_integrate for F<double>
 	FDyn_.resize(nb_robots_);
-	Eigen::Matrix<F<double>, 3, 1> Finit_pos, Finit_rot;
 	for (int r=0;r<nb_robots_;++r)
-	{
-		FDyn_[r].SetRobotXml(Robot_xml_[r]);
-		Finit_pos[0] = init_posture_[pit(r,0)];
-		Finit_pos[1] = init_posture_[pit(r,1)];
-		Finit_pos[2] = init_posture_[pit(r,2)];
-		Finit_rot[0] = init_posture_[pit(r,3)];
-		Finit_rot[1] = init_posture_[pit(r,4)];
-		Finit_rot[2] = init_posture_[pit(r,5)];
-		if (!FDyn_[r].is_free_floating_base())
-			FDyn_[r].set_root_transformation( init_pos, init_rot);
-	}
+		FDyn_[r].SetRobot(Robots_[r]);
 	Fdyn_integrate_ = new Dynamics_Integrate<F<double>>(nb_robots_, *env_, FDyn_);
 	
 	// initialize vectors for integrate calculus
