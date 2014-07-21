@@ -22,6 +22,7 @@
 #include <iomanip>
 #include "Direct_Motion_Optimization_Holder.h"
 
+
 /**
 	                   how informations are stored in IPOPT vector x
 	|-------------------------------------------------------------------------------|
@@ -113,6 +114,46 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 		}
 		final_posture_.pop_back();
 	}
+	velocity_init_zero_ = false;
+	tinyxml2::XMLElement * ElInit_Velocity = ElMotion->FirstChildElement ("init_velocity");
+	if (ElInit_Velocity)
+	{
+		std::string str_tmp = ElInit_Velocity->GetText();
+		if (str_tmp.compare("none") == 0)
+		{} // do nothing
+		else if (str_tmp.compare("zero") == 0)
+			velocity_init_zero_ = true;
+		else
+		{
+			std::istringstream iss (str_tmp, std::ios_base::in);
+			while (iss) {
+				iss >> tmp;
+				init_velocity_.push_back(tmp);
+			}
+			init_velocity_.pop_back();
+		}
+	}
+	velocity_final_zero_ = false;
+	tinyxml2::XMLElement * ElFinal_Velocity = ElMotion->FirstChildElement ("final_velocity");
+	if (ElFinal_Velocity)
+	{
+		std::string str_tmp = ElFinal_Velocity->GetText();
+		if (str_tmp.compare("none") == 0)
+		{} // do nothing
+		else if (str_tmp.compare("zero") == 0)
+			velocity_final_zero_ = true;
+		else
+		{
+			std::istringstream iss (str_tmp, std::ios_base::in);
+			while (iss) {
+				iss >> tmp;
+				final_velocity_.push_back(tmp);
+			}
+			final_velocity_.pop_back();
+		}
+	}
+	tinyxml2::XMLElement * ElConstraint_cm = ElMotion->FirstChildElement ("cyclic_motion");
+	cyclic_motion_ = string_to_bool("cyclic_motion", ElConstraint_cm->GetText());
 	tinyxml2::XMLElement * ElMotion_duration = ElMotion->FirstChildElement ("motion_duration");
 	motion_duration_ = string_to_double(ElMotion_duration->GetText());
 }
@@ -138,8 +179,29 @@ void Direct_Motion_Optimization_Holder::initialize ()
 {
 	problem_init(); 
 	
+	env_->setXml(Environment_xml_);	
+	env_->loadXml();
+	
 	std::cout << "init_posture_.size() : " << init_posture_.size() << std::endl;
 	std::cout << "final_posture_.size() : " << final_posture_.size() << std::endl;
+	if (velocity_init_zero_)
+		std::cout << "velocity_init_zero_ : " << velocity_init_zero_ << std::endl;
+	else 
+	{
+		std::cout << "init_velocity_ : ";
+		for (int i=0; i<init_velocity_.size();++i)
+			std::cout << init_velocity_[i] << " ";
+		std::cout << std::endl;
+	}
+	if (velocity_final_zero_) 
+		std::cout << "velocity_final_zero_ : " << velocity_final_zero_ << std::endl;
+	else
+	{
+		std::cout << "final_velocity_ : ";
+		for (int i=0; i<final_velocity_.size();++i)
+			std::cout << final_velocity_[i] << " ";
+		std::cout << std::endl;
+	}
 	
 	total_nb_dofs_ = 0;
 	for (int i = 0; i < nb_dofs_.size(); ++i) 
@@ -147,9 +209,17 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	
 	std::cout << "total_nb_dofs_ = " << total_nb_dofs_ << std::endl;
 	
-	if (total_nb_dofs_ != init_posture_.size() || total_nb_dofs_ != final_posture_.size()) {
+	if (total_nb_dofs_ != init_posture_.size() || total_nb_dofs_ != final_posture_.size()) 
+	{
 		std::cout << "Error when loading initial or final posture in xml problem file : wrong arity" << std::endl;
 		exit(-1);
+	}
+	
+	if ((init_velocity_.size() > 0 && init_velocity_.size() != total_nb_dofs_) || (final_velocity_.size() > 0 && final_velocity_.size() != total_nb_dofs_))
+	{
+		std::cout << "Error when loading initial or final velocity in xml problem file : wrong arity" << std::endl;
+		exit(-1);
+	  
 	}
 	
 	nb_step_ = ceil(motion_duration_ / integration_step_) + 1;
@@ -174,6 +244,11 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	
 	std::cout << "nb_jac_non_null_ = " << nb_jac_non_null_ << std::endl;
 	
+	// print some informations
+	std::cout << "cyclic_motion_ = " << cyclic_motion_ << std::endl;
+	// FIXME DO cyclic motion by adding constraints and modify all IPOPT functions....
+	
+	
 	// create Dyn_ and dyn_integrate for double
 	Dyn_.resize(nb_robots_);
 	Eigen::Matrix< double, 3, 1> init_pos, init_rot;
@@ -191,22 +266,22 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	}
 	dyn_integrate_ = new Dynamics_Integrate<double>(nb_robots_, *env_, Dyn_);
 
-// 	// create Dyn_ and dyn_integrate for F<double>
-// 	FDyn_.resize(nb_robots_);
-// 	Eigen::Matrix<F<double>, 3, 1> Finit_pos, Finit_rot;
-// 	for (int r=0;r<nb_robots_;++r)
-// 	{
-// 		FDyn_[r].SetRobotXml(Robot_xml_[r]);
-// 		Finit_pos[0] = init_posture_[pit(r,0)];
-// 		Finit_pos[1] = init_posture_[pit(r,1)];
-// 		Finit_pos[2] = init_posture_[pit(r,2)];
-// 		Finit_rot[0] = init_posture_[pit(r,3)];
-// 		Finit_rot[1] = init_posture_[pit(r,4)];
-// 		Finit_rot[2] = init_posture_[pit(r,5)];
-// 		if (!FDyn_[r].is_free_floating_base())
-// 			FDyn_[r].set_root_transformation( Finit_pos, Finit_rot);
-// 	}
-// 	Fdyn_integrate_ = new Dynamics_Integrate<F<double>>(nb_robots_, *env_, FDyn_);
+	// create Dyn_ and dyn_integrate for F<double>
+	FDyn_.resize(nb_robots_);
+	Eigen::Matrix<F<double>, 3, 1> Finit_pos, Finit_rot;
+	for (int r=0;r<nb_robots_;++r)
+	{
+		FDyn_[r].SetRobotXml(Robot_xml_[r]);
+		Finit_pos[0] = init_posture_[pit(r,0)];
+		Finit_pos[1] = init_posture_[pit(r,1)];
+		Finit_pos[2] = init_posture_[pit(r,2)];
+		Finit_rot[0] = init_posture_[pit(r,3)];
+		Finit_rot[1] = init_posture_[pit(r,4)];
+		Finit_rot[2] = init_posture_[pit(r,5)];
+		if (!FDyn_[r].is_free_floating_base())
+			FDyn_[r].set_root_transformation( init_pos, init_rot);
+	}
+	Fdyn_integrate_ = new Dynamics_Integrate<F<double>>(nb_robots_, *env_, FDyn_);
 	
 	// initialize vectors for integrate calculus
 	q_.resize(nb_robots_);
@@ -258,6 +333,13 @@ void Direct_Motion_Optimization_Holder::initialize ()
 			}
 		}
 	}
+	pit_.resize(nb_robots_);
+	for (int r=0; r<nb_robots_; ++r) {
+		pit_[r].resize(nb_dofs_[r]);
+		for ( int n=0;n<nb_dofs_[r];++n) {
+			pit_[r][n] = pit(r,n);
+		}
+	}
 	
 }
 
@@ -292,36 +374,68 @@ int Direct_Motion_Optimization_Holder::pit(int robot, int nbdof)
 
 void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_u, double *g_l, double *g_u)
 {
-	// x.size() = nb_param_
 	int r,s,n,i;
+	
+	// x.size() = nb_param_
 	std::vector<double> p_l, p_u, v_u, t_u; 
-	for (r=0;r<nb_robots_;++r) {                            // for all robots
+	for (r=0;r<nb_robots_;++r) {                 
 		Robots_[r]->getPositionLimit(p_l, p_u);
 		Robots_[r]->getVelocityLimit(v_u);
 		Robots_[r]->getTorqueLimit(t_u);
-		for (s=0; s<nb_step_; ++s) {                    // for all steps
-			for (n=0; n<nb_dofs_[r]; ++n) {         // for all nb_dofs
-				x_l[it_[s][r][0][n]] = p_l[n];  // set bounds for q
-				x_u[it_[s][r][0][n]] = p_u[n];    
-				x_l[it_[s][r][1][n]] = -v_u[n]; // set bounds for dq       
-				x_u[it_[s][r][1][n]] = v_u[n];
-				x_l[it_[s][r][2][n]] = -1e20;   // set bounds for ddq
-				x_u[it_[s][r][2][n]] = 1e20;
+		for (s=0; s<nb_step_; ++s) for (n=0; n<nb_dofs_[r]; ++n) 
+		{   
+			x_l[it_[s][r][0][n]] = p_l[n];  // set bounds for q
+			x_u[it_[s][r][0][n]] = p_u[n];    
+			x_l[it_[s][r][1][n]] = -v_u[n]; // set bounds for dq       
+			x_u[it_[s][r][1][n]] = v_u[n];
+			x_l[it_[s][r][2][n]] = -1e20;   // set bounds for ddq
+			x_u[it_[s][r][2][n]] = 1e20;
+			
+			if (Robots_[r]->is_robot_floating_base() && n < 6 ) 
+			{
+				x_l[it_[s][r][3][n]] = 0;       // set bounds for torque
+				x_u[it_[s][r][3][n]] = 0;  
+			}
+			else 
+			{
 				x_l[it_[s][r][3][n]] = -t_u[n]; // set bounds for torque
 				x_u[it_[s][r][3][n]] = t_u[n];
 			}
 		}
 	}
-	// fixe first and last step for q
-	for (r=0;r<nb_robots_;++r)
-		for (n=0; n<nb_dofs_[r]; ++n) {
-			x_l[it_[0][r][0][n]] = init_posture_[pit(r,n)];  // set bounds for q init
-			x_u[it_[0][r][0][n]] = init_posture_[pit(r,n)];    
-			x_l[it_[nb_step_-1][r][0][n]] = final_posture_[pit(r,n)];  // set bounds for q last
-			x_u[it_[nb_step_-1][r][0][n]] = final_posture_[pit(r,n)];    
+	// fixe first and last step for q and dq
+	for (r=0;r<nb_robots_;++r) for (n=0; n<nb_dofs_[r]; ++n) 
+	{
+		// q
+		x_l[it_[0][r][0][n]] = init_posture_[pit_[r][n]];  // set bounds for q init
+		x_u[it_[0][r][0][n]] = init_posture_[pit_[r][n]];    
+		x_l[it_[nb_step_-1][r][0][n]] = final_posture_[pit_[r][n]];  // set bounds for q last
+		x_u[it_[nb_step_-1][r][0][n]] = final_posture_[pit_[r][n]];    
+		
+		// dq
+		if (init_velocity_.size() > 0) // velocity : specified
+		{
+			x_l[it_[0][r][1][n]] = init_velocity_[pit_[r][n]];  // set bounds for dq init
+			x_u[it_[0][r][1][n]] = init_velocity_[pit_[r][n]];    
+			x_l[it_[nb_step_-1][r][1][n]] = final_velocity_[pit_[r][n]];  // set bounds for dq last
+			x_u[it_[nb_step_-1][r][1][n]] = final_velocity_[pit_[r][n]];    
 		}
+		else // velocity : zero
+		{
+			if (velocity_init_zero_) {
+				x_l[it_[0][r][1][n]] = 0;  // set bounds for dq init
+				x_u[it_[0][r][1][n]] = 0;    
+			}
+			if (velocity_final_zero_) {
+				x_l[it_[nb_step_-1][r][1][n]] = 0;  // set bounds for dq last
+				x_u[it_[nb_step_-1][r][1][n]] = 0;    
+			}
+		} // velocity none
+	}
+	
 	// g.size() = nb_ctr_
-	for (i=0;i<nb_ctr_;++i) {
+	for (i=0;i<nb_ctr_;++i) 
+	{
 		g_l[i] = 0.;
 		g_u[i] = 0.;
 	}
@@ -331,11 +445,13 @@ void Direct_Motion_Optimization_Holder::get_starting_point (double *x)
 {
 	int r, s, n;
 	for (s=0; s<nb_step_; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-		x[it_[s][r][0][n]] = init_posture_[pit(r,n)] + s*(final_posture_[pit(r,n)] - init_posture_[pit(r,n)])/nb_step_; // set initial value for position with linear interpolation
+		x[it_[s][r][0][n]] = init_posture_[pit_[r][n]] + (1.*s)*(final_posture_[pit_[r][n]] - init_posture_[pit_[r][n]])/(nb_step_-1); // set initial value for position with linear interpolation
 		x[it_[s][r][1][n]] = 0.; // set initial value for velocity at 0
 		x[it_[s][r][2][n]] = 0.; // set initial value for accel at 0
 		x[it_[s][r][3][n]] = 0.; // set initial value for torque at 0
 	}
+// 	for (int i=0;i<nb_param_;i++)
+// 	  std::cout<<"xinit["<<i<<"] = "<< x[i]<<std::endl;
 }
 
 double Direct_Motion_Optimization_Holder::eval_f (bool new_x, const double *x)
@@ -394,6 +510,9 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 	// la contrainte : q_eps_i - q_debut_i+1 = 0
 	// la contrainte : dq_eps_i - dq_debut_i+1 = 0
 	
+// 	for (int i=0;i<nb_param_;i++)
+// 	  std::cout<<"x["<<i<<"] = "<< x[i]<<std::endl;
+	
 	int s, r, n;
 	int cpt_g = 0;
 	for (s=0; s<nb_step_ - 1; ++s) {          // Caution -1     // for all steps
@@ -404,9 +523,11 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 				ddq_[r][n] = x[it_[s][r][2][n]];
 				torque_[r][n] = x[it_[s][r][3][n]];
 			}
+// 			std::cout<<"q_["<<r<<"] = "<< q_[r].transpose()<<std::endl;
 		}
-// 		dyn_integrate_->integrate(q_, dq_, ddq_, torque_, integration_step_); 
-		integrate_bidon<double>(q_, dq_, ddq_, torque_, integration_step_);
+		
+		dyn_integrate_->integrate(q_, dq_, ddq_, torque_, integration_step_); 
+// 		integrate_bidon<double>(q_, dq_, ddq_, torque_, integration_step_);
 		for (r=0; r<nb_robots_; ++r) {
 			for (n=0; n<nb_dofs_[r]; ++n) {             // set constraints
 				g[cpt_g++] = q_[r][n] - x[it_[s+1][r][0][n]]; 
@@ -454,6 +575,7 @@ void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x
 		cpt_diff = 0;
 		for (r=0; r<nb_robots_; ++r) {   
 			for (n=0; n<nb_dofs_[r]; ++n) {
+				q_[r][n] = x[it_[s][r][0][n]];
 				Fq_[r][n] = x[it_[s][r][0][n]];
 				Fq_[r][n].diff(cpt_diff++, total_nb_dofs_ * 4);
 				Fdq_[r][n] = x[it_[s][r][1][n]];
@@ -463,10 +585,11 @@ void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x
 				Ftorque_[r][n] = x[it_[s][r][3][n]];
 				Ftorque_[r][n].diff(cpt_diff++, total_nb_dofs_ * 4);
 			}
+// 			std::cout<<"Fq_["<<r<<"] = "<< q_[r].transpose()<<std::endl;
 		}
 		cpt_diff_max = cpt_diff;
-// 		Fdyn_integrate_->integrate(Fq_, Fdq_, Fddq_, Ftorque_, integration_step_); 
-		integrate_bidon<F<double> >(Fq_, Fdq_, Fddq_, Ftorque_, integration_step_);
+		Fdyn_integrate_->integrate(Fq_, Fdq_, Fddq_, Ftorque_, integration_step_); 
+// 		integrate_bidon<F<double> >(Fq_, Fdq_, Fddq_, Ftorque_, integration_step_);
 		for (r=0; r<nb_robots_; ++r) {
 			for (n=0; n<nb_dofs_[r]; ++n)
 			{
@@ -511,9 +634,9 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 	
 	std::cout.precision(10);
 	std::ostringstream X,oss;
-	for (int i=0;i<nb_param_;i++)
-		X << std::setprecision(20)<< x[i]<<" ";
-	std::string s = X.str();
+// 	for (int i=0;i<nb_param_;i++)
+// 		X << std::setprecision(20)<< x[i]<<" ";
+// 	std::string s = X.str();
 	
 	tinyxml2::XMLNode * Elnbparam = doc_.NewElement ("nbparam");	
 	oss << nb_param_;
@@ -522,26 +645,82 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 	Elnbparam->InsertEndChild (nbparam);
 	result->InsertEndChild (Elnbparam);	
 	
-	tinyxml2::XMLNode * Elparam = doc_.NewElement ("param");	
-	tinyxml2::XMLText * param = doc_.NewText ( s.c_str() );
-	Elparam->InsertEndChild (param);
-	result->InsertEndChild (Elparam);
+// 	tinyxml2::XMLNode * Elparam = doc_.NewElement ("param");	
+// 	tinyxml2::XMLText * param = doc_.NewText ( s.c_str() );
+// 	Elparam->InsertEndChild (param);
+// 	result->InsertEndChild (Elparam);
 	
 	for(int s=0;s<nb_step_;s++)
 	{
+// 		tinyxml2::XMLElement * Elvalue = doc_.NewElement ("q");
+// 		Elvalue->SetAttribute("time",integration_step_ * i);
+// 		std::ostringstream oss_q;
+// 		for (int j=0; j< total_nb_dofs_; ++j)
+// 			oss_q << q_result_[i](j) << " ";
+// 		std::string s1 = oss_q.str();
+// 		tinyxml2::XMLText *Elq = doc_.NewText ( s1.c_str());
+// 		Elvalue->InsertEndChild (Elq);
+// 		result->InsertEndChild (Elvalue);		
 		tinyxml2::XMLElement * Elvalue = doc_.NewElement ("q");
 		Elvalue->SetAttribute("time",integration_step_ * s);
+		for (int k=0; k < nb_robots_; k++)
+		{
+			std::ostringstream oss_q;
+			if ( k ==0)	// FIXME for the moment only one robot
+				for (int j=0;j<nb_dofs_[k];j++)
+					oss_q << q_result_[s](j)<<" ";
 
-		std::ostringstream oss_q;
-		for (int r=0; r<nb_robots_; ++r) for (int n=0;n<nb_dofs_[r];n++) {
-			oss_q << x[it_[s][r][0][n]] << " ";
-		}
+			tinyxml2::XMLElement *xml_q = doc_.NewElement ("Qrobot");
+			xml_q->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
+			tinyxml2::XMLText *xml_text = doc_.NewText ( oss_q.str().c_str());
+			xml_q->InsertEndChild (xml_text);
+			Elvalue->InsertEndChild (xml_q);
+		}                                
 		
-		std::string s1 = oss_q.str();
-		tinyxml2::XMLText *Elq = doc_.NewText ( s1.c_str());
-		Elvalue->InsertEndChild (Elq);
-		result->InsertEndChild (Elvalue);
+		result->InsertEndChild (Elvalue);  
 	};
+	
+// 	// print dq
+// 	for(int i=0;i<nb_step_;i++)
+// 	{
+// 		tinyxml2::XMLElement * Elvaluedq = doc_.NewElement ("dq");
+// 		Elvaluedq->SetAttribute("time",integration_step_ * i);
+// 		std::ostringstream oss_dq;
+// 		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
+// 			oss_dq << x[it_[i][r][1][j]] << " ";
+// 		std::string s1 = oss_dq.str();
+// 		tinyxml2::XMLText *Eldq = doc_.NewText ( s1.c_str());
+// 		Elvaluedq->InsertEndChild (Eldq);
+// 		result->InsertEndChild (Elvaluedq);
+// 	};
+// 	
+// 	// print ddq
+// 	for(int i=0;i<nb_step_;i++)
+// 	{
+// 		tinyxml2::XMLElement * Elvalueddq = doc_.NewElement ("ddq");
+// 		Elvalueddq->SetAttribute("time",integration_step_ * i);
+// 		std::ostringstream oss_ddq;
+// 		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
+// 			oss_ddq << x[it_[i][r][2][j]] << " ";
+// 		std::string s1 = oss_ddq.str();
+// 		tinyxml2::XMLText *Elddq = doc_.NewText ( s1.c_str());
+// 		Elvalueddq->InsertEndChild (Elddq);
+// 		result->InsertEndChild (Elvalueddq);
+// 	};
+// 	
+// 	// print tau
+// 	for(int i=0;i<nb_step_;i++)
+// 	{
+// 		tinyxml2::XMLElement * Elvaluetau = doc_.NewElement ("tau");
+// 		Elvaluetau->SetAttribute("time",integration_step_ * i);
+// 		std::ostringstream oss_tau;
+// 		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
+// 			oss_tau << x[it_[i][r][3][j]] << " ";
+// 		std::string s1 = oss_tau.str();
+// 		tinyxml2::XMLText *Eltau = doc_.NewText ( s1.c_str());
+// 		Elvaluetau->InsertEndChild (Eltau);
+// 		result->InsertEndChild (Elvaluetau);
+// 	};
 	
 	results->InsertEndChild (result);
 	doc_.SaveFile (xml_problem_filename_.c_str() );

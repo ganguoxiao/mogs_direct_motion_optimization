@@ -28,6 +28,9 @@
 
 #include "fadiff.h"
 
+
+
+
 class Direct_Motion_Optimization_Holder:public Optimization_Holder
 {
       public:
@@ -115,10 +118,17 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	// motion
 	std::vector<double> init_posture_;
 	std::vector<double> final_posture_;
+	std::vector<double> init_velocity_;
+	std::vector<double> final_velocity_;
 	double motion_duration_;
+	bool velocity_init_zero_;
+	bool velocity_final_zero_;
+	
+	bool cyclic_motion_;
 
 	// iterators
 	std::vector<std::vector<std::vector<std::vector<int> > > > it_, git_;
+	std::vector<std::vector<int> > pit_;
 	
 	// others
 	double nb_step_;
@@ -129,8 +139,8 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	Dynamics_Integrate<double> *dyn_integrate_;
 	std::vector<Eigen::Matrix <double,Eigen::Dynamic,1> > q_, dq_, ddq_, torque_;
 	
-// 	std::vector<RigidBodyDynamics::Dynamics<F<double> > > FDyn_;
-// 	Dynamics_Integrate<F<double> > *Fdyn_integrate_;
+	std::vector<RigidBodyDynamics::Dynamics<F<double> > > FDyn_;
+	Dynamics_Integrate<F<double> > *Fdyn_integrate_;
 	std::vector<Eigen::Matrix <F<double>,Eigen::Dynamic,1> > Fq_, Fdq_, Fddq_, Ftorque_;
 	
 	// stock results
@@ -181,7 +191,7 @@ void integrate_bidon(std::vector< Eigen::Matrix< TT, Eigen::Dynamic, 1> > &q_,
 {
 	int r, n;
 	for (r=0;r<q_.size();++r) {
-		for (n=0;n<q_[r].size();++n) { // parce que neufneuf !
+		for (n=0;n<q_[r].size();++n) { 
 			q_[r](n) += dq_[r](n) * eps;
 			dq_[r](n) += ddq_[r](n) * eps;
 		}
