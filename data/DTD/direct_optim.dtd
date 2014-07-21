@@ -2,7 +2,7 @@
 <!ATTLIST problem 
 	type (DirectMotionOptimization) #REQUIRED> 
 
-<!ELEMENT robot (name)>
+<!ELEMENT robot (name,position?,rotation?)>
 <!ELEMENT environment (name)>
 <!ELEMENT solver (name, options?)>
 <!ELEMENT parameters (constraint_on_q, constraint_on_dq, coeff_dq_max, optim_motion_duration, constraint_on_torques, criteria, parallelization, integration_step)>
@@ -12,6 +12,8 @@
 <!ELEMENT result (result_name,date,nbparam, param?,q*, dq*, ddq*, tau*) >
 
 <!ELEMENT name (#PCDATA)>
+<!ELEMENT position (#PCDATA)>
+<!ELEMENT rotation (#PCDATA)>
 <!ELEMENT options (#PCDATA) >
 <!ATTLIST options
 	option CDATA #REQUIRED
@@ -38,6 +40,18 @@
 
 <!ELEMENT q (Qrobot*)>
 <!ATTLIST q
+    time CDATA #REQUIRED>
+    
+<!ELEMENT dq (Qrobot*)>
+<!ATTLIST dq
+    time CDATA #REQUIRED>
+    
+<!ELEMENT ddq (Qrobot*)>
+<!ATTLIST ddq
+    time CDATA #REQUIRED>
+    
+<!ELEMENT tau (Qrobot*)>
+<!ATTLIST tau
     time CDATA #REQUIRED>
     
 <!ELEMENT Qrobot (#PCDATA)>

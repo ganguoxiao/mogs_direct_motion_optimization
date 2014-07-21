@@ -72,22 +72,22 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 	// retrieve parameters informations
 	tinyxml2::XMLElement * ElParameters = root->FirstChildElement ("parameters");
 	tinyxml2::XMLElement * ElConstraint_on_q = ElParameters->FirstChildElement ("constraint_on_q");
-	constraint_on_q_ = string_to_bool("constraint_on_q", ElConstraint_on_q->GetText());
+	constraint_on_q_ = string_to_bool("constraint_on_q", char_to_string(ElConstraint_on_q->GetText()));
 	tinyxml2::XMLElement * ElConstraint_on_dq = ElParameters->FirstChildElement ("constraint_on_dq");
-	constraint_on_dq_ = string_to_bool("constraint_on_dq", ElConstraint_on_dq->GetText());
+	constraint_on_dq_ = string_to_bool("constraint_on_dq", char_to_string(ElConstraint_on_dq->GetText()));
 	tinyxml2::XMLElement * ElCoeff_dq_max = ElParameters->FirstChildElement ("coeff_dq_max");
-	coeff_dq_max_ = string_to_double(ElConstraint_on_q->GetText());
+	coeff_dq_max_ = string_to_double(char_to_string(ElConstraint_on_q->GetText()));
 	tinyxml2::XMLElement * ElOptim_m_duration = ElParameters->FirstChildElement ("optim_motion_duration");
-	optim_motion_duration_ = string_to_bool("optim_motion_duration", ElOptim_m_duration->GetText());
+	optim_motion_duration_ = string_to_bool("optim_motion_duration", char_to_string(ElOptim_m_duration->GetText()));
 	tinyxml2::XMLElement * ElConstraint_on_torques = ElParameters->FirstChildElement ("constraint_on_torques");
-	constraint_on_torques_ = string_to_bool("constraint_on_torques", ElConstraint_on_torques->GetText());
+	constraint_on_torques_ = string_to_bool("constraint_on_torques", char_to_string(ElConstraint_on_torques->GetText()));
 	tinyxml2::XMLElement * ElCriteria = ElParameters->FirstChildElement ("criteria");
-	criteria_ = ElCriteria->GetText();
+	criteria_ = char_to_string(ElCriteria->GetText());
 	std::cout << "criteria_ = " << criteria_ << std::endl;
 	tinyxml2::XMLElement * ElParallelization = ElParameters->FirstChildElement ("parallelization");
-	parallelization_ = ElParallelization->GetText();
+	parallelization_ = char_to_string(ElParallelization->GetText());
 	tinyxml2::XMLElement * ElIntegration_step = ElParameters->FirstChildElement ("integration_step");
-	integration_step_ = string_to_double(ElIntegration_step->GetText());
+	integration_step_ = string_to_double(char_to_string(ElIntegration_step->GetText()));
 	std::cout << "integration_step_ = " << integration_step_ << std::endl;
 	
 	// retrieve motion informations
@@ -118,7 +118,7 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 	tinyxml2::XMLElement * ElInit_Velocity = ElMotion->FirstChildElement ("init_velocity");
 	if (ElInit_Velocity)
 	{
-		std::string str_tmp = ElInit_Velocity->GetText();
+		std::string str_tmp = char_to_string(ElInit_Velocity->GetText());
 		if (str_tmp.compare("none") == 0)
 		{} // do nothing
 		else if (str_tmp.compare("zero") == 0)
@@ -137,7 +137,7 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 	tinyxml2::XMLElement * ElFinal_Velocity = ElMotion->FirstChildElement ("final_velocity");
 	if (ElFinal_Velocity)
 	{
-		std::string str_tmp = ElFinal_Velocity->GetText();
+		std::string str_tmp = char_to_string(ElFinal_Velocity->GetText());
 		if (str_tmp.compare("none") == 0)
 		{} // do nothing
 		else if (str_tmp.compare("zero") == 0)
@@ -153,9 +153,9 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 		}
 	}
 	tinyxml2::XMLElement * ElConstraint_cm = ElMotion->FirstChildElement ("cyclic_motion");
-	cyclic_motion_ = string_to_bool("cyclic_motion", ElConstraint_cm->GetText());
+	cyclic_motion_ = string_to_bool("cyclic_motion", char_to_string(ElConstraint_cm->GetText()));
 	tinyxml2::XMLElement * ElMotion_duration = ElMotion->FirstChildElement ("motion_duration");
-	motion_duration_ = string_to_double(ElMotion_duration->GetText());
+	motion_duration_ = string_to_double(char_to_string(ElMotion_duration->GetText()));
 }
 
 bool Direct_Motion_Optimization_Holder::testXml (const std::string xml_name)
@@ -211,13 +211,17 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	
 	if (total_nb_dofs_ != init_posture_.size() || total_nb_dofs_ != final_posture_.size()) 
 	{
+		printf("\033[%sm","31"); // print in red
 		std::cout << "Error when loading initial or final posture in xml problem file : wrong arity" << std::endl;
+		printf("\033[%sm","0");
 		exit(-1);
 	}
 	
 	if ((init_velocity_.size() > 0 && init_velocity_.size() != total_nb_dofs_) || (final_velocity_.size() > 0 && final_velocity_.size() != total_nb_dofs_))
 	{
+		printf("\033[%sm","31"); // print in red
 		std::cout << "Error when loading initial or final velocity in xml problem file : wrong arity" << std::endl;
+		printf("\033[%sm","0"); 
 		exit(-1);
 	  
 	}
@@ -251,6 +255,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	
 	// create Dyn_ and dyn_integrate for double
 	Dyn_.resize(nb_robots_);
+	// FIXME add in xml file init pos and init rot
 	Eigen::Matrix< double, 3, 1> init_pos, init_rot;
 	for (int r=0;r<nb_robots_;++r)
 	{
@@ -341,6 +346,30 @@ void Direct_Motion_Optimization_Holder::initialize ()
 		}
 	}
 	
+	/** Check many parameters compatibility */
+	
+	// check compatibility : cyclic motion with init final posture an velocity
+	if (cyclic_motion_)
+	{
+		for (int i=0; i<init_posture_.size();++i)
+		{
+			if (init_posture_[i] !=  final_posture_[i])
+			{
+				printf("\033[%sm","31"); // print in red
+				std::cout << "With cyclic motion, initial posture must be equal with final posture" << std::endl;
+				printf("\033[%sm","0"); // reinitialize color
+				exit(-1);
+			}
+			if (init_velocity_.size() > 0 && init_velocity_[i] !=  final_velocity_[i])
+			{
+				printf("\033[%sm","31"); // print in red
+				std::cout << "With cyclic motion, initial velocity must be equal with final velocity (or none or zero)" << std::endl;
+				printf("\033[%sm","0"); // reinitialize color
+				exit(-1);
+			}
+		}
+	}
+	
 }
 
 int Direct_Motion_Optimization_Holder::it(int time, int robot, int param, int nbdof)
@@ -382,6 +411,34 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 		Robots_[r]->getPositionLimit(p_l, p_u);
 		Robots_[r]->getVelocityLimit(v_u);
 		Robots_[r]->getTorqueLimit(t_u);
+		/** check parameters with robot bounds */
+		for (i=0; i<nb_dofs_[r];++i){
+			if (p_l[i] > init_posture_[pit_[r][i]] || p_u[i] < init_posture_[pit_[r][i]]) {
+				printf("\033[%sm","31"); // print in red
+				std::cout << "Robot " << r << ", initial posture " << i << ", does not fit with robot's bound" << std::endl;
+				printf("\033[%sm","0"); // reinitialize color
+				exit(-1);
+			}
+			if (p_l[i] > final_posture_[pit_[r][i]] || p_u[i] < final_posture_[pit_[r][i]]) {
+				printf("\033[%sm","31"); // print in red
+				std::cout << "Robot " << r << ", final posture " << i << ", does not fit with robot's bound" << std::endl;
+				printf("\033[%sm","0"); // reinitialize color
+				exit(-1);
+			}
+			if (init_velocity_.size() > 0 && (-v_u[i] > init_velocity_[pit_[r][i]] || v_u[i] < init_velocity_[pit_[r][i]])) {
+				printf("\033[%sm","31"); // print in red
+				std::cout << "Robot " << r << ", initial velocity " << i << ", does not fit with robot's bound" << std::endl;
+				printf("\033[%sm","0"); // reinitialize color
+				exit(-1);
+			}
+			if (init_velocity_.size() > 0 && (-v_u[i] > init_velocity_[pit_[r][i]] || v_u[i] < init_velocity_[pit_[r][i]])) {
+				printf("\033[%sm","31"); // print in red
+				std::cout << "Robot " << r << ", final velocity " << i << ", does not fit with robot's bound" << std::endl;
+				printf("\033[%sm","0"); // reinitialize color
+				exit(-1);
+			}
+		}
+		/** end check */
 		for (s=0; s<nb_step_; ++s) for (n=0; n<nb_dofs_[r]; ++n) 
 		{   
 			x_l[it_[s][r][0][n]] = p_l[n];  // set bounds for q
@@ -450,8 +507,6 @@ void Direct_Motion_Optimization_Holder::get_starting_point (double *x)
 		x[it_[s][r][2][n]] = 0.; // set initial value for accel at 0
 		x[it_[s][r][3][n]] = 0.; // set initial value for torque at 0
 	}
-// 	for (int i=0;i<nb_param_;i++)
-// 	  std::cout<<"xinit["<<i<<"] = "<< x[i]<<std::endl;
 }
 
 double Direct_Motion_Optimization_Holder::eval_f (bool new_x, const double *x)
@@ -510,9 +565,6 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 	// la contrainte : q_eps_i - q_debut_i+1 = 0
 	// la contrainte : dq_eps_i - dq_debut_i+1 = 0
 	
-// 	for (int i=0;i<nb_param_;i++)
-// 	  std::cout<<"x["<<i<<"] = "<< x[i]<<std::endl;
-	
 	int s, r, n;
 	int cpt_g = 0;
 	for (s=0; s<nb_step_ - 1; ++s) {          // Caution -1     // for all steps
@@ -523,7 +575,6 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 				ddq_[r][n] = x[it_[s][r][2][n]];
 				torque_[r][n] = x[it_[s][r][3][n]];
 			}
-// 			std::cout<<"q_["<<r<<"] = "<< q_[r].transpose()<<std::endl;
 		}
 		
 		dyn_integrate_->integrate(q_, dq_, ddq_, torque_, integration_step_); 
@@ -585,7 +636,6 @@ void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x
 				Ftorque_[r][n] = x[it_[s][r][3][n]];
 				Ftorque_[r][n].diff(cpt_diff++, total_nb_dofs_ * 4);
 			}
-// 			std::cout<<"Fq_["<<r<<"] = "<< q_[r].transpose()<<std::endl;
 		}
 		cpt_diff_max = cpt_diff;
 		Fdyn_integrate_->integrate(Fq_, Fdq_, Fddq_, Ftorque_, integration_step_); 
@@ -652,75 +702,100 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 	
 	for(int s=0;s<nb_step_;s++)
 	{
-// 		tinyxml2::XMLElement * Elvalue = doc_.NewElement ("q");
-// 		Elvalue->SetAttribute("time",integration_step_ * i);
-// 		std::ostringstream oss_q;
-// 		for (int j=0; j< total_nb_dofs_; ++j)
-// 			oss_q << q_result_[i](j) << " ";
-// 		std::string s1 = oss_q.str();
-// 		tinyxml2::XMLText *Elq = doc_.NewText ( s1.c_str());
-// 		Elvalue->InsertEndChild (Elq);
-// 		result->InsertEndChild (Elvalue);		
-		tinyxml2::XMLElement * Elvalue = doc_.NewElement ("q");
-		Elvalue->SetAttribute("time",integration_step_ * s);
+		
+		tinyxml2::XMLElement * Elvalue_q = doc_.NewElement ("q");
+		Elvalue_q->SetAttribute("time",integration_step_ * s);
+		
 		for (int k=0; k < nb_robots_; k++)
 		{
 			std::ostringstream oss_q;
 			if ( k ==0)	// FIXME for the moment only one robot
 				for (int j=0;j<nb_dofs_[k];j++)
-					oss_q << q_result_[s](j)<<" ";
+				{
+					oss_q << q_result_[s](j)<< " ";
+				}
 
 			tinyxml2::XMLElement *xml_q = doc_.NewElement ("Qrobot");
 			xml_q->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
 			tinyxml2::XMLText *xml_text = doc_.NewText ( oss_q.str().c_str());
 			xml_q->InsertEndChild (xml_text);
-			Elvalue->InsertEndChild (xml_q);
-		}                                
+			Elvalue_q->InsertEndChild (xml_q);
+		}  
 		
-		result->InsertEndChild (Elvalue);  
-	};
+		result->InsertEndChild (Elvalue_q);  
+	}
+
+	for(int s=0;s<nb_step_;s++)
+	{		
+		tinyxml2::XMLElement * Elvalue_dq = doc_.NewElement ("dq");
+		Elvalue_dq->SetAttribute("time",integration_step_ * s);
+
+		for (int k=0; k < nb_robots_; k++)
+		{
+			std::ostringstream oss_dq;
+			if ( k ==0)	// FIXME for the moment only one robot
+				for (int j=0;j<nb_dofs_[k];j++)
+				{
+					oss_dq << x[it_[s][k][1][j]] << " ";
+				}
+
+			tinyxml2::XMLElement *xml_dq = doc_.NewElement ("Qrobot");
+			xml_dq->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
+			tinyxml2::XMLText *xml_text_dq = doc_.NewText ( oss_dq.str().c_str());
+			xml_dq->InsertEndChild (xml_text_dq);
+			Elvalue_dq->InsertEndChild (xml_dq);
+		}
+		
+		result->InsertEndChild (Elvalue_dq);  
+	}
 	
-// 	// print dq
-// 	for(int i=0;i<nb_step_;i++)
-// 	{
-// 		tinyxml2::XMLElement * Elvaluedq = doc_.NewElement ("dq");
-// 		Elvaluedq->SetAttribute("time",integration_step_ * i);
-// 		std::ostringstream oss_dq;
-// 		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
-// 			oss_dq << x[it_[i][r][1][j]] << " ";
-// 		std::string s1 = oss_dq.str();
-// 		tinyxml2::XMLText *Eldq = doc_.NewText ( s1.c_str());
-// 		Elvaluedq->InsertEndChild (Eldq);
-// 		result->InsertEndChild (Elvaluedq);
-// 	};
-// 	
-// 	// print ddq
-// 	for(int i=0;i<nb_step_;i++)
-// 	{
-// 		tinyxml2::XMLElement * Elvalueddq = doc_.NewElement ("ddq");
-// 		Elvalueddq->SetAttribute("time",integration_step_ * i);
-// 		std::ostringstream oss_ddq;
-// 		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
-// 			oss_ddq << x[it_[i][r][2][j]] << " ";
-// 		std::string s1 = oss_ddq.str();
-// 		tinyxml2::XMLText *Elddq = doc_.NewText ( s1.c_str());
-// 		Elvalueddq->InsertEndChild (Elddq);
-// 		result->InsertEndChild (Elvalueddq);
-// 	};
-// 	
-// 	// print tau
-// 	for(int i=0;i<nb_step_;i++)
-// 	{
-// 		tinyxml2::XMLElement * Elvaluetau = doc_.NewElement ("tau");
-// 		Elvaluetau->SetAttribute("time",integration_step_ * i);
-// 		std::ostringstream oss_tau;
-// 		for (int r=0; r<nb_robots_;++r) for (int j=0;j<nb_dofs_[r];j++)
-// 			oss_tau << x[it_[i][r][3][j]] << " ";
-// 		std::string s1 = oss_tau.str();
-// 		tinyxml2::XMLText *Eltau = doc_.NewText ( s1.c_str());
-// 		Elvaluetau->InsertEndChild (Eltau);
-// 		result->InsertEndChild (Elvaluetau);
-// 	};
+	for(int s=0;s<nb_step_;s++)
+	{
+		tinyxml2::XMLElement * Elvalue_ddq = doc_.NewElement ("ddq");
+		Elvalue_ddq->SetAttribute("time",integration_step_ * s);
+
+		for (int k=0; k < nb_robots_; k++)
+		{
+			std::ostringstream oss_ddq;
+			if ( k ==0)	// FIXME for the moment only one robot
+				for (int j=0;j<nb_dofs_[k];j++)
+				{
+					oss_ddq << x[it_[s][k][2][j]] << " ";
+				}
+
+			tinyxml2::XMLElement *xml_ddq = doc_.NewElement ("Qrobot");
+			xml_ddq->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
+			tinyxml2::XMLText *xml_text_ddq = doc_.NewText ( oss_ddq.str().c_str());
+			xml_ddq->InsertEndChild (xml_text_ddq);
+			Elvalue_ddq->InsertEndChild (xml_ddq);
+		}    
+		
+		result->InsertEndChild (Elvalue_ddq); 
+	}
+	
+	for(int s=0;s<nb_step_;s++)
+	{		
+		tinyxml2::XMLElement * Elvalue_tau = doc_.NewElement ("tau");
+		Elvalue_tau->SetAttribute("time",integration_step_ * s);
+
+		for (int k=0; k < nb_robots_; k++)
+		{
+			std::ostringstream oss_tau;
+			if ( k ==0)	// FIXME for the moment only one robot
+				for (int j=0;j<nb_dofs_[k];j++)
+				{
+					oss_tau <<  x[it_[s][k][3][j]] << " ";
+				}
+			
+			tinyxml2::XMLElement *xml_tau = doc_.NewElement ("Qrobot");
+			xml_tau->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
+			tinyxml2::XMLText *xml_text_tau = doc_.NewText ( oss_tau.str().c_str());
+			xml_tau->InsertEndChild (xml_text_tau);
+			Elvalue_tau->InsertEndChild (xml_tau);
+		}    		
+		
+		result->InsertEndChild (Elvalue_tau);  
+	}
 	
 	results->InsertEndChild (result);
 	doc_.SaveFile (xml_problem_filename_.c_str() );
