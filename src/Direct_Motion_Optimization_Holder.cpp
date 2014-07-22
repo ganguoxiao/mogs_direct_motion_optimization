@@ -302,8 +302,6 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	std::cout << "nb_step_ = " << nb_step_ << std::endl;
 
 	std::cout << "cyclic_motion_ = " << cyclic_motion_ << std::endl;
-	// FIXME DO cyclic motion by adding constraints and modify all IPOPT functions....
-
 	
 	// set nb_param_
 	nb_param_ = nb_step_ * total_nb_dofs_ * 4; // 4 for q, dq, ddq, torque
@@ -311,6 +309,8 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	// set nb_ctr_
 	nb_ctr_ = total_nb_dofs_ * (nb_step_-1) * 2; // 2 for q, dq 
 	// maybe we will add ddq later
+	if (cyclic_motion_)
+		nb_ctr_ += total_nb_dofs_ * 4; // 4 for q, dq, ddq, torque
 	
 	std::cout << "nb_param_ = " << nb_param_<<std::endl;
 	std::cout << "nb_ctr_ = " << nb_ctr_<<std::endl;
@@ -322,6 +322,9 @@ void Direct_Motion_Optimization_Holder::initialize ()
 		nb_jac_non_null_ += 1 + 4 * nb_dofs_[r];
 	}
 	
+	if (cyclic_motion_)
+		nb_jac_non_null_ += total_nb_dofs_ * 4 * 2;
+		
 	std::cout << "nb_jac_non_null_ = " << nb_jac_non_null_ << std::endl;
 	
 	// create Dyn_ and dyn_integrate for double
@@ -329,6 +332,8 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	for (int r=0;r<nb_robots_;++r)
 		Dyn_[r].SetRobot(Robots_[r]);
 
+	// FIXME fix floating base robot set_root_transformation with init position
+		
 	dyn_integrate_ = new Dynamics_Integrate<double>(nb_robots_, *env_, Dyn_);
 
 	// create Dyn_ and dyn_integrate for F<double>
@@ -651,6 +656,12 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 			}
 		}
 	}
+	
+	if (cyclic_motion_)
+	{
+		for (r=0; r<nb_robots_; ++r) for (int p=0; p<4; ++p) for (n=0; n<nb_dofs_[r]; ++n)
+			g[cpt_g++] = x[it_[0][r][p][n]] - x[it_[nb_step_-1][r][p][n]];
+	}
 }
 
 void Direct_Motion_Optimization_Holder::get_dependencies (int *iRow, int *jCol)
@@ -671,6 +682,19 @@ void Direct_Motion_Optimization_Holder::get_dependencies (int *iRow, int *jCol)
 				cpt++;
 			}
 		cpt_g++;
+	}
+	if (cyclic_motion_)
+	{
+		for (r=0; r<nb_robots_; ++r) for (int p=0; p<4; ++p) for (n=0; n<nb_dofs_[r]; ++n)
+		{
+			iRow[cpt] = cpt_g;
+			jCol[cpt] = it_[0][r][p][n];
+			cpt++;
+			iRow[cpt] = cpt_g;
+			jCol[cpt] = it_[nb_step_-1][r][p][n];
+			cpt++;
+			cpt_g++;
+		}
 	}
 }
 
@@ -719,6 +743,14 @@ void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x
 				for (i=0; i<cpt_diff_max; ++i)
 					values[cpt++] = contrainte_dq.d(i);
 			}
+		}
+	}
+	if (cyclic_motion_)
+	{
+		for (r=0; r<nb_robots_; ++r) for (int p=0; p<4; ++p) for (n=0; n<nb_dofs_[r]; ++n)
+		{
+			values[cpt++] = 1;
+			values[cpt++] = -1;
 		}
 	}
 }
