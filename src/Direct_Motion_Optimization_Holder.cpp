@@ -301,6 +301,15 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	nb_step_ = ceil(motion_duration_ / integration_step_) + 1;
 	std::cout << "nb_step_ = " << nb_step_ << std::endl;
 
+	if (criteria_.compare("jerk") == 0 && nb_step_ < 5)
+	{
+		printf("\033[%sm","31"); // print in red
+		std::cout << "Jerk criteria required at least 5 steps (for calculus)" << std::endl;
+		printf("\033[%sm","0"); 
+		exit(-1);
+	}
+	  
+	
 	std::cout << "cyclic_motion_ = " << cyclic_motion_ << std::endl;
 	
 	// set nb_param_
@@ -309,6 +318,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	// set nb_ctr_
 	nb_ctr_ = total_nb_dofs_ * (nb_step_-1) * 2; // 2 for q, dq 
 	// maybe we will add ddq later
+	
 	if (cyclic_motion_)
 		nb_ctr_ += total_nb_dofs_ * 4; // 4 for q, dq, ddq, torque
 	
@@ -584,7 +594,7 @@ double Direct_Motion_Optimization_Holder::eval_f (bool new_x, const double *x)
 	if (criteria_.compare("none") == 0) {
 		return 0.;
 	}
-	else if (criteria_.compare("energy") == 0) {
+	else if (criteria_.compare("energy") == 0) { // minimize energy (torque)
 		int s, r, n;
 		double res = 0., buf;
 		for (s=0; s<nb_step_; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {    
@@ -593,9 +603,15 @@ double Direct_Motion_Optimization_Holder::eval_f (bool new_x, const double *x)
 		}
 		return res;
 	}
-	else if (criteria_.compare("jerk") == 0) {
-		std::cout << "Jerk is not implemented yet" << std::endl;
-		exit(EXIT_FAILURE);
+	// jerk is calculate with difference of difference of velocity
+	else if (criteria_.compare("jerk") == 0) { // minimize difference of acceleration one step to another
+		int s, r, n;
+		double res = 0., buf;
+		for (s=1; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+			buf = 2*x[it_[s][r][1][n]] - x[it_[s-1][r][1][n]] - x[it_[s+1][r][1][n]];
+			res = buf * buf;
+		}
+		return res;
 	}
 	else if (criteria_.compare("fitting") == 0) {
 		std::cout << "Fitting is not implemented yet" << std::endl;
@@ -618,8 +634,16 @@ void Direct_Motion_Optimization_Holder::eval_grad_f (bool new_x, const double *x
 			grad_f[it_[s][r][3][n]] = 2 * x[it_[s][r][3][n]];
 	}
 	else if (criteria_.compare("jerk") == 0) {
-		std::cout << "Jerk is not implemented yet" << std::endl;
-		exit(EXIT_FAILURE);
+		int s, r, n;
+		for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+			grad_f[it_[0][r][1][n]] = 2*x[it_[0][r][1][n]] - 4*x[it_[1][r][1][n]] + 2*x[it_[2][r][1][n]];
+			grad_f[it_[1][r][1][n]] = -4 *x[it_[0][r][1][n]] + 8 * x[it_[1][r][1][n]] - 4*x[it_[2][r][1][n]] + 2*x[it_[1][r][1][n]] - 4*x[it_[2][r][1][n]] + 2*x[it_[3][r][1][n]];
+			grad_f[it_[nb_step_-2][r][1][n]] = -4 *x[it_[nb_step_-1][r][1][n]] + 8 * x[it_[nb_step_-2][r][1][n]] - 4*x[it_[nb_step_-3][r][1][n]] + 2*x[it_[nb_step_-4][r][1][n]] - 4*x[it_[nb_step_-3][r][1][n]] + 2*x[it_[nb_step_-2][r][1][n]];
+			grad_f[it_[nb_step_-1][r][1][n]] = 2*x[it_[nb_step_-3][r][1][n]] - 4*x[it_[nb_step_-2][r][1][n]] + 2*x[it_[nb_step_-1][r][1][n]];
+		}
+		for (s=2; s<nb_step_ - 2; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+			grad_f[it_[s][r][1][n]] = -4*x[it_[s-1][r][1][n]] + 2*x[it_[s][r][1][n]] + 2*x[it_[s-2][r][1][n]] - 4*x[it_[s-1][r][1][n]] + 8*x[it_[s][r][1][n]] - 4*x[it_[s+1][r][1][n]] + 2*x[it_[s][r][1][n]] - 4*x[it_[s+1][r][1][n]] + 2*x[it_[s+2][r][1][n]];
+		}
 	}
 	else if (criteria_.compare("fitting") == 0) {
 		std::cout << "Fitting is not implemented yet" << std::endl;
@@ -846,6 +870,8 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 		result->InsertEndChild (Elvalue_dq);  
 	}
 	
+	/** It is useless to stored acceleration because we are in the MGD, it is redundant */
+	// but it is more human readable
 	for(int s=0;s<nb_step_;s++)
 	{
 		tinyxml2::XMLElement * Elvalue_ddq = doc_.NewElement ("ddq");
