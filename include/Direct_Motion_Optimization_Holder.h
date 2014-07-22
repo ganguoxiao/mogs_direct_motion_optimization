@@ -123,7 +123,10 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	double motion_duration_;
 	bool velocity_init_zero_;
 	bool velocity_final_zero_;
-	
+	std::vector<std::string> constraint_name_;
+	std::vector<double> constraint_time_;
+	std::vector<std::vector<double> > constraint_position_;
+	std::vector<int> constraint_robot_number_;
 	bool cyclic_motion_;
 
 	// iterators
@@ -133,6 +136,7 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	// others
 	double nb_step_;
 	int total_nb_dofs_;
+
 	
 	// dynamics
 	std::vector<RigidBodyDynamics::Dynamics<double> > Dyn_;

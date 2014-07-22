@@ -65,33 +65,42 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 {
 	double tmp = 0.;
   
-	// retrieve solver name and its options
+	/** retrieve solver name and its options */
 	Optim_properties_.read_problem(root);
 	Optim_properties_.check_problem();
 	
-	// retrieve parameters informations
+	/** retrieve parameters informations */
 	tinyxml2::XMLElement * ElParameters = root->FirstChildElement ("parameters");
+	// get constraint on q
 	tinyxml2::XMLElement * ElConstraint_on_q = ElParameters->FirstChildElement ("constraint_on_q");
 	constraint_on_q_ = string_to_bool("constraint_on_q", char_to_string(ElConstraint_on_q->GetText()));
+	// get constraint on dq
 	tinyxml2::XMLElement * ElConstraint_on_dq = ElParameters->FirstChildElement ("constraint_on_dq");
 	constraint_on_dq_ = string_to_bool("constraint_on_dq", char_to_string(ElConstraint_on_dq->GetText()));
+	// get coeff dq max
 	tinyxml2::XMLElement * ElCoeff_dq_max = ElParameters->FirstChildElement ("coeff_dq_max");
 	coeff_dq_max_ = string_to_double(char_to_string(ElConstraint_on_q->GetText()));
+	// get optim motion duration
 	tinyxml2::XMLElement * ElOptim_m_duration = ElParameters->FirstChildElement ("optim_motion_duration");
 	optim_motion_duration_ = string_to_bool("optim_motion_duration", char_to_string(ElOptim_m_duration->GetText()));
+	// get constraint on torques
 	tinyxml2::XMLElement * ElConstraint_on_torques = ElParameters->FirstChildElement ("constraint_on_torques");
 	constraint_on_torques_ = string_to_bool("constraint_on_torques", char_to_string(ElConstraint_on_torques->GetText()));
+	// get criteria
 	tinyxml2::XMLElement * ElCriteria = ElParameters->FirstChildElement ("criteria");
 	criteria_ = char_to_string(ElCriteria->GetText());
 	std::cout << "criteria_ = " << criteria_ << std::endl;
+	// get parallelization
 	tinyxml2::XMLElement * ElParallelization = ElParameters->FirstChildElement ("parallelization");
 	parallelization_ = char_to_string(ElParallelization->GetText());
+	// get integration step
 	tinyxml2::XMLElement * ElIntegration_step = ElParameters->FirstChildElement ("integration_step");
 	integration_step_ = string_to_double(char_to_string(ElIntegration_step->GetText()));
 	std::cout << "integration_step_ = " << integration_step_ << std::endl;
 	
-	// retrieve motion informations
+	/** retrieve motion informations */
 	tinyxml2::XMLElement * ElMotion = root->FirstChildElement ("motion");
+	// get initial posture
 	tinyxml2::XMLElement * ElInit_posture = ElMotion->FirstChildElement ("init_posture");
 	if (ElInit_posture)
 	{
@@ -104,6 +113,7 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 		init_posture_.pop_back();
 		
 	}
+	// get final posture
 	tinyxml2::XMLElement * ElFinal_posture = ElMotion->FirstChildElement ("final_posture");
 	if (ElFinal_posture)
 	{
@@ -114,6 +124,25 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 		}
 		final_posture_.pop_back();
 	}
+	// get constraint with time
+	tinyxml2::XMLElement *ElConstraint;
+	for (ElConstraint = ElMotion->FirstChildElement ("constraint"); ElConstraint; ElConstraint = ElConstraint->NextSiblingElement("constraint"))
+	{
+		tinyxml2::XMLElement *ElConstraint_time = ElConstraint->FirstChildElement ("time");
+		constraint_time_.push_back(string_to_double(char_to_string(ElConstraint_time->GetText())));
+		tinyxml2::XMLElement *ElConstraint_name = ElConstraint->FirstChildElement ("name");
+		constraint_name_.push_back(char_to_string(ElConstraint_name->GetText()));
+		tinyxml2::XMLElement *ElConstraint_position = ElConstraint->FirstChildElement ("position");
+		std::istringstream iss (char_to_string(ElConstraint_position->GetText()),std::ios_base::in);
+		std::vector<double> v_tmp;
+		while (iss) {
+			iss >> tmp;
+			v_tmp.push_back(tmp);
+		}
+		v_tmp.pop_back();
+		constraint_position_.push_back(v_tmp);
+	}
+	// get initial velocity
 	velocity_init_zero_ = false;
 	tinyxml2::XMLElement * ElInit_Velocity = ElMotion->FirstChildElement ("init_velocity");
 	if (ElInit_Velocity)
@@ -133,6 +162,7 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 			init_velocity_.pop_back();
 		}
 	}
+	// get final velocity
 	velocity_final_zero_ = false;
 	tinyxml2::XMLElement * ElFinal_Velocity = ElMotion->FirstChildElement ("final_velocity");
 	if (ElFinal_Velocity)
@@ -152,6 +182,7 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 			final_velocity_.pop_back();
 		}
 	}
+	//get cyclic motion
 	tinyxml2::XMLElement * ElConstraint_cm = ElMotion->FirstChildElement ("cyclic_motion");
 	cyclic_motion_ = string_to_bool("cyclic_motion", char_to_string(ElConstraint_cm->GetText()));
 	tinyxml2::XMLElement * ElMotion_duration = ElMotion->FirstChildElement ("motion_duration");
@@ -223,11 +254,56 @@ void Direct_Motion_Optimization_Holder::initialize ()
 		std::cout << "Error when loading initial or final velocity in xml problem file : wrong arity" << std::endl;
 		printf("\033[%sm","0"); 
 		exit(-1);
-	  
+	}
+
+	for (int i=0; i<constraint_position_.size(); ++i)
+	{
+		if (((int)((constraint_time_[i]/integration_step_)*10))%10 != 0)
+		{
+			constraint_time_[i] = ceil(constraint_time_[i]/integration_step_)*integration_step_;
+			printf("\033[%sm","34"); // print in blue
+			std::cout << "Constraint's time n° " << i << " has been modified to fit the motion" << std::endl;
+			printf("\033[%sm","0"); 
+		}
+		bool name_error = true;
+		for (int r=0; r<nb_robots_; ++r)
+		{
+			if (Robots_[r]->getRobotName().compare(constraint_name_[i]) == 0)
+			{
+				constraint_robot_number_.push_back(r);
+				name_error = false;
+				break;
+			}
+		}
+		if (name_error)
+		{
+			printf("\033[%sm","31"); // print in red
+			std::cout << "The robot \"" << constraint_name_[i] << "\" does not exist" << std::endl;
+			printf("\033[%sm","0"); 
+			exit(-1);  
+		}
+		if (constraint_position_[i].size() != nb_dofs_[constraint_robot_number_[i]])
+		{
+			printf("\033[%sm","31"); // print in red
+			std::cout << "Error when loading constraint's position for robot " << constraint_name_[i] << " in xml problem file : wrong arity" << std::endl;
+			printf("\033[%sm","0"); 
+			exit(-1);
+		}
+		if (constraint_time_[i] >= motion_duration_ || constraint_time_[i] == 0)
+		{
+			printf("\033[%sm","31"); // print in red
+			std::cout << "Error when loading constraint's time for robot " << constraint_name_[i] << " in xml problem file : time must be between the beginning and the end of the motion" << std::endl;
+			printf("\033[%sm","0"); 
+			exit(-1);
+		}
 	}
 	
 	nb_step_ = ceil(motion_duration_ / integration_step_) + 1;
 	std::cout << "nb_step_ = " << nb_step_ << std::endl;
+
+	std::cout << "cyclic_motion_ = " << cyclic_motion_ << std::endl;
+	// FIXME DO cyclic motion by adding constraints and modify all IPOPT functions....
+
 	
 	// set nb_param_
 	nb_param_ = nb_step_ * total_nb_dofs_ * 4; // 4 for q, dq, ddq, torque
@@ -247,11 +323,6 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	}
 	
 	std::cout << "nb_jac_non_null_ = " << nb_jac_non_null_ << std::endl;
-	
-	// print some informations
-	std::cout << "cyclic_motion_ = " << cyclic_motion_ << std::endl;
-	// FIXME DO cyclic motion by adding constraints and modify all IPOPT functions....
-	
 	
 	// create Dyn_ and dyn_integrate for double
 	Dyn_.resize(nb_robots_);
@@ -415,6 +486,15 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 				printf("\033[%sm","0"); // reinitialize color
 				exit(-1);
 			}
+			for (int j=0; j<constraint_position_.size(); ++j)
+				if (constraint_robot_number_[j] == r)
+					if (p_l[i] > constraint_position_[j][i] || p_u[i] < constraint_position_[j][i])
+					{
+						printf("\033[%sm","31"); // print in red
+						std::cout << "Constraint's position " << i << " for robot " << constraint_name_[j] << ", does not fit with robot's bound" << std::endl;
+						printf("\033[%sm","0"); // reinitialize color
+						exit(-1);
+					}
 		}
 		/** end check */
 		for (s=0; s<nb_step_; ++s) for (n=0; n<nb_dofs_[r]; ++n) 
@@ -466,6 +546,13 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 				x_u[it_[nb_step_-1][r][1][n]] = 0;    
 			}
 		} // velocity none
+	}
+	
+	// fixe constraint bounds
+	for (i=0; i<constraint_position_.size(); ++i) for (int j=0; j<constraint_position_[i].size(); ++j)
+	{
+		x_l[it_[(int)(constraint_time_[i]/integration_step_)][constraint_robot_number_[i]][0][j]] = constraint_position_[i][j];
+		x_u[it_[(int)(constraint_time_[i]/integration_step_)][constraint_robot_number_[i]][0][j]] = constraint_position_[i][j];
 	}
 	
 	// g.size() = nb_ctr_

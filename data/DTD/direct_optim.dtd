@@ -6,7 +6,7 @@
 <!ELEMENT environment (name)>
 <!ELEMENT solver (name, options?)>
 <!ELEMENT parameters (constraint_on_q, constraint_on_dq, coeff_dq_max, optim_motion_duration, constraint_on_torques, criteria, parallelization, integration_step)>
-<!ELEMENT motion (init_posture, final_posture, init_velocity, final_velocity, cyclic_motion, motion_duration)>
+<!ELEMENT motion (init_posture, final_posture, constraint*, init_velocity, final_velocity, cyclic_motion, motion_duration)>
 <!ELEMENT results (result*)>
 
 <!ELEMENT result (result_name,date,nbparam, param?,q*, dq*, ddq*, tau*) >
@@ -29,6 +29,10 @@
 <!ELEMENT integration_step (#PCDATA)>
 <!ELEMENT init_posture (#PCDATA)>
 <!ELEMENT final_posture (#PCDATA)>
+
+<!ELEMENT constraint (time, name, position)>
+<!ELEMENT time (#PCDATA)>
+
 <!ELEMENT init_velocity (#PCDATA)>
 <!ELEMENT final_velocity (#PCDATA)>
 <!ELEMENT cyclic_motion (#PCDATA)>
@@ -57,16 +61,3 @@
 <!ELEMENT Qrobot (#PCDATA)>
 <!ATTLIST Qrobot
     name CDATA #REQUIRED>
-
-<!--<!ELEMENT q (#PCDATA)>
-<!ATTLIST q 
-	time CDATA #REQUIRED>-->
-<!--<!ELEMENT dq (#PCDATA)>
-<!ATTLIST dq 
-	time CDATA #REQUIRED>
-<!ELEMENT ddq (#PCDATA)>
-<!ATTLIST ddq 
-	time CDATA #REQUIRED>
-<!ELEMENT tau (#PCDATA)>
-<!ATTLIST tau 
-	time CDATA #REQUIRED>-->
