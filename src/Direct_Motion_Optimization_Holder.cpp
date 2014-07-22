@@ -316,8 +316,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	nb_param_ = nb_step_ * total_nb_dofs_ * 4; // 4 for q, dq, ddq, torque
 	
 	// set nb_ctr_
-	nb_ctr_ = total_nb_dofs_ * (nb_step_-1) * 2; // 2 for q, dq 
-	// maybe we will add ddq later
+	nb_ctr_ = total_nb_dofs_ * (nb_step_-1) * 3; // 2 for q, dq, ddq
 	
 	if (cyclic_motion_)
 		nb_ctr_ += total_nb_dofs_ * 4; // 4 for q, dq, ddq, torque
@@ -327,7 +326,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	
 	// initialize nb_jac_non_null_
 	nb_jac_non_null_ = 0;
-	for (int s=0; s<nb_step_-1; ++s) for (int r=0; r<nb_robots_; ++r) for (int p=0;p<2;++p) for (int k=0;k<nb_dofs_[r];++k)
+	for (int s=0; s<nb_step_-1; ++s) for (int r=0; r<nb_robots_; ++r) for (int p=0;p<3;++p) for (int k=0;k<nb_dofs_[r];++k)
 	{
 		nb_jac_non_null_ += 1 + 4 * nb_dofs_[r];
 	}
@@ -603,15 +602,19 @@ double Direct_Motion_Optimization_Holder::eval_f (bool new_x, const double *x)
 		}
 		return res;
 	}
-	// jerk is calculate with difference of difference of velocity
 	else if (criteria_.compare("jerk") == 0) { // minimize difference of acceleration one step to another
 		int s, r, n;
 		double res = 0., buf;
-		for (s=1; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-			buf = 2*x[it_[s][r][1][n]] - x[it_[s-1][r][1][n]] - x[it_[s+1][r][1][n]];
-			res = buf * buf;
+		for (s=0; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+			buf = x[it_[s][r][2][n]] - x[it_[s+1][r][2][n]];
+			res += buf * buf;
 		}
+// 		for (s=1; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+// 			buf = 2*x[it_[s][r][1][n]] - x[it_[s-1][r][1][n]] - x[it_[s+1][r][1][n]];
+// 			res += buf * buf;
+// 		}
 		return res;
+		std::cout << "jerk : " << res << std::endl;
 	}
 	else if (criteria_.compare("fitting") == 0) {
 		std::cout << "Fitting is not implemented yet" << std::endl;
@@ -636,14 +639,21 @@ void Direct_Motion_Optimization_Holder::eval_grad_f (bool new_x, const double *x
 	else if (criteria_.compare("jerk") == 0) {
 		int s, r, n;
 		for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-			grad_f[it_[0][r][1][n]] = 2*x[it_[0][r][1][n]] - 4*x[it_[1][r][1][n]] + 2*x[it_[2][r][1][n]];
-			grad_f[it_[1][r][1][n]] = -4 *x[it_[0][r][1][n]] + 8 * x[it_[1][r][1][n]] - 4*x[it_[2][r][1][n]] + 2*x[it_[1][r][1][n]] - 4*x[it_[2][r][1][n]] + 2*x[it_[3][r][1][n]];
-			grad_f[it_[nb_step_-2][r][1][n]] = -4 *x[it_[nb_step_-1][r][1][n]] + 8 * x[it_[nb_step_-2][r][1][n]] - 4*x[it_[nb_step_-3][r][1][n]] + 2*x[it_[nb_step_-4][r][1][n]] - 4*x[it_[nb_step_-3][r][1][n]] + 2*x[it_[nb_step_-2][r][1][n]];
-			grad_f[it_[nb_step_-1][r][1][n]] = 2*x[it_[nb_step_-3][r][1][n]] - 4*x[it_[nb_step_-2][r][1][n]] + 2*x[it_[nb_step_-1][r][1][n]];
+			grad_f[it_[0][r][2][n]] = 2*x[it_[0][r][2][n]] - 2*x[it_[1][r][2][n]];
+			grad_f[it_[nb_step_-1][r][2][n]] = 2*x[it_[nb_step_-1][r][2][n]] - 2*x[it_[nb_step_-2][r][2][n]];
 		}
-		for (s=2; s<nb_step_ - 2; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-			grad_f[it_[s][r][1][n]] = -4*x[it_[s-1][r][1][n]] + 2*x[it_[s][r][1][n]] + 2*x[it_[s-2][r][1][n]] - 4*x[it_[s-1][r][1][n]] + 8*x[it_[s][r][1][n]] - 4*x[it_[s+1][r][1][n]] + 2*x[it_[s][r][1][n]] - 4*x[it_[s+1][r][1][n]] + 2*x[it_[s+2][r][1][n]];
+		for (s=1; s<nb_step_ - 1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+			grad_f[it_[s][r][2][n]] = -2*x[it_[s-1][r][2][n]] + 4*x[it_[s][r][2][n]] - 2*x[it_[s+1][r][2][n]];
 		}
+// 		for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+// 			grad_f[it_[0][r][1][n]] = 2*x[it_[0][r][1][n]] - 4*x[it_[1][r][1][n]] + 2*x[it_[2][r][1][n]];
+// 			grad_f[it_[1][r][1][n]] = -4 *x[it_[0][r][1][n]] + 8 * x[it_[1][r][1][n]] - 4*x[it_[2][r][1][n]] + 2*x[it_[1][r][1][n]] - 4*x[it_[2][r][1][n]] + 2*x[it_[3][r][1][n]];
+// 			grad_f[it_[nb_step_-2][r][1][n]] = -4 *x[it_[nb_step_-1][r][1][n]] + 8 * x[it_[nb_step_-2][r][1][n]] - 4*x[it_[nb_step_-3][r][1][n]] + 2*x[it_[nb_step_-4][r][1][n]] - 4*x[it_[nb_step_-3][r][1][n]] + 2*x[it_[nb_step_-2][r][1][n]];
+// 			grad_f[it_[nb_step_-1][r][1][n]] = 2*x[it_[nb_step_-3][r][1][n]] - 4*x[it_[nb_step_-2][r][1][n]] + 2*x[it_[nb_step_-1][r][1][n]];
+// 		}
+// 		for (s=2; s<nb_step_ - 2; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+// 			grad_f[it_[s][r][1][n]] = -4*x[it_[s-1][r][1][n]] + 2*x[it_[s][r][1][n]] + 2*x[it_[s-2][r][1][n]] - 4*x[it_[s-1][r][1][n]] + 8*x[it_[s][r][1][n]] - 4*x[it_[s+1][r][1][n]] + 2*x[it_[s][r][1][n]] - 4*x[it_[s+1][r][1][n]] + 2*x[it_[s+2][r][1][n]];
+// 		}
 	}
 	else if (criteria_.compare("fitting") == 0) {
 		std::cout << "Fitting is not implemented yet" << std::endl;
@@ -677,6 +687,7 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 			for (n=0; n<nb_dofs_[r]; ++n) {             // set constraints
 				g[cpt_g++] = q_[r][n] - x[it_[s+1][r][0][n]]; 
 				g[cpt_g++] = dq_[r][n] - x[it_[s+1][r][1][n]];
+				g[cpt_g++] = ddq_[r][n] - x[it_[s+1][r][2][n]];
 			}
 		}
 	}
@@ -693,7 +704,7 @@ void Direct_Motion_Optimization_Holder::get_dependencies (int *iRow, int *jCol)
 	// In iRow, set ctr_ index, in jCol set param_ index
 	int s, r, p, n, k, cpt = 0;
 	int cpt_g = 0;
-	for (s=0; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) for (p=0;p<2;++p)
+	for (s=0; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) for (p=0;p<3;++p)
 	{
 		iRow[cpt] = cpt_g; 
 		jCol[cpt] = it_[s+1][r][p][n];
@@ -733,7 +744,7 @@ void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x
 	int s, r, p, n, i;
 	int cpt_diff, cpt = 0;
 	int cpt_diff_max;
-	F<double> contrainte_q, contrainte_dq;
+	F<double> contrainte_q, contrainte_dq, contrainte_ddq;
 	for (s=0; s<nb_step_ - 1; ++s) 
 	{        
 		cpt_diff = 0;
@@ -766,6 +777,11 @@ void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x
 				contrainte_dq = Fdq_[r][n];
 				for (i=0; i<cpt_diff_max; ++i)
 					values[cpt++] = contrainte_dq.d(i);
+				// constraint on ddq
+				values[cpt++] = -1;
+				contrainte_ddq = Fddq_[r][n];
+				for (i=0; i<cpt_diff_max; ++i)
+					values[cpt++] = contrainte_ddq.d(i);
 			}
 		}
 	}
