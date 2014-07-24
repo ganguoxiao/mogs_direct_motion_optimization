@@ -104,6 +104,8 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	int git(int time, int robot, int param, int nbdof);
 	int pit(int robot, int nbdof);
 	
+	void export_to_csv(const double *x);
+	
 	protected:
 	
 	// parameters
@@ -112,7 +114,7 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	double coeff_dq_max_;
 	bool optim_motion_duration_;
 	bool constraint_on_torques_;
-	std::string criteria_;
+	CriteriaType criteria_;
 	std::string parallelization_;
 	double integration_step_;
 	// motion

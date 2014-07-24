@@ -19,7 +19,9 @@
 // 	From 2014 : Université Blaise Pascal, ISPR, MACCS, Clermont-Ferrand, France
 
 #include <iostream>
+#include <fstream>
 #include <iomanip>
+#include <ctime>
 #include "Direct_Motion_Optimization_Holder.h"
 
 
@@ -88,8 +90,18 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 	constraint_on_torques_ = string_to_bool("constraint_on_torques", char_to_string(ElConstraint_on_torques->GetText()));
 	// get criteria
 	tinyxml2::XMLElement * ElCriteria = ElParameters->FirstChildElement ("criteria");
-	criteria_ = char_to_string(ElCriteria->GetText());
-	std::cout << "criteria_ = " << criteria_ << std::endl;
+	std::string crit = char_to_string(ElCriteria->GetText());
+	if (crit.compare("none") == 0)
+		criteria_ = NoCriteria;
+	if (crit.compare("fitting") == 0)
+		criteria_ = MotionCaptureFitting;
+	if (crit.compare("energy") == 0)
+		criteria_ = Energy;
+	if (crit.compare("torquesquare") == 0)
+		criteria_ = TorqueSquare;
+	if (crit.compare("jerk") == 0)
+		criteria_ = Jerk;
+	std::cout << "criteria_ = " << crit << std::endl;
 	// get parallelization
 	tinyxml2::XMLElement * ElParallelization = ElParameters->FirstChildElement ("parallelization");
 	parallelization_ = char_to_string(ElParallelization->GetText());
@@ -299,9 +311,16 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	}
 	
 	nb_step_ = ceil(motion_duration_ / integration_step_) + 1;
+	if (motion_duration_ - ((nb_step_-1) * integration_step_) != 0) 
+	{
+		motion_duration_ = (nb_step_-1) * integration_step_;
+		printf("\033[%sm","34"); // print in blue
+		std::cout << "Motion duration has been modified to fit the problem, new value : " << motion_duration_ << std::endl;
+		printf("\033[%sm","0");
+	}
 	std::cout << "nb_step_ = " << nb_step_ << std::endl;
 
-	if (criteria_.compare("jerk") == 0 && nb_step_ < 5)
+	if (criteria_ == Jerk && nb_step_ < 5)
 	{
 		printf("\033[%sm","31"); // print in red
 		std::cout << "Jerk criteria required at least 5 steps (for calculus)" << std::endl;
@@ -590,35 +609,34 @@ void Direct_Motion_Optimization_Holder::get_starting_point (double *x)
 
 double Direct_Motion_Optimization_Holder::eval_f (bool new_x, const double *x)
 {
-	if (criteria_.compare("none") == 0) {
-		return 0.;
-	}
-	else if (criteria_.compare("energy") == 0) { // minimize energy (torque)
-		int s, r, n;
-		double res = 0., buf;
-		for (s=0; s<nb_step_; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {    
-			buf = x[it_[s][r][3][n]];
-			res += buf * buf;
-		}
-		return res;
-	}
-	else if (criteria_.compare("jerk") == 0) { // minimize difference of acceleration one step to another
-		int s, r, n;
-		double res = 0., buf;
-		for (s=0; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-			buf = x[it_[s][r][2][n]] - x[it_[s+1][r][2][n]];
-			res += buf * buf;
-		}
-// 		for (s=1; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-// 			buf = 2*x[it_[s][r][1][n]] - x[it_[s-1][r][1][n]] - x[it_[s+1][r][1][n]];
-// 			res += buf * buf;
-// 		}
-		return res;
-		std::cout << "jerk : " << res << std::endl;
-	}
-	else if (criteria_.compare("fitting") == 0) {
-		std::cout << "Fitting is not implemented yet" << std::endl;
-		exit(EXIT_FAILURE);
+	int s, r, n;
+	double res = 0., buf;
+	switch (criteria_) 
+	{
+		case NoCriteria:
+			break;
+		case Energy:
+			std::cout << "Energy is not implemented yet" << std::endl;
+			exit(EXIT_FAILURE);
+			break;
+		case TorqueSquare:   // minimize torque square
+			for (s=0; s<nb_step_; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {    
+				buf = x[it_[s][r][3][n]];
+				res += buf * buf;
+			}
+			res *= integration_step_;
+			return res;
+		case Jerk:            // minimize difference of acceleration one step to another
+			for (s=0; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+				buf = x[it_[s][r][2][n]] - x[it_[s+1][r][2][n]];
+				res += buf * buf;
+			}
+			res *= integration_step_;
+			return res;
+		case MotionCaptureFitting:
+			std::cout << "Fitting is not implemented yet" << std::endl;
+			exit(EXIT_FAILURE);
+			break;
 	}
 	return 0.;
 }
@@ -628,36 +646,32 @@ void Direct_Motion_Optimization_Holder::eval_grad_f (bool new_x, const double *x
 	for (int i=0; i<nb_param_; ++i)
 		grad_f[i] = 0.;	
 	
-	if (criteria_.compare("none") == 0) {
-		// do nothing
-	}
-	else if (criteria_.compare("energy") == 0) {
-		int s, r, n;
-		for (s=0; s<nb_step_; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n)
-			grad_f[it_[s][r][3][n]] = 2 * x[it_[s][r][3][n]];
-	}
-	else if (criteria_.compare("jerk") == 0) {
-		int s, r, n;
-		for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-			grad_f[it_[0][r][2][n]] = 2*x[it_[0][r][2][n]] - 2*x[it_[1][r][2][n]];
-			grad_f[it_[nb_step_-1][r][2][n]] = 2*x[it_[nb_step_-1][r][2][n]] - 2*x[it_[nb_step_-2][r][2][n]];
-		}
-		for (s=1; s<nb_step_ - 1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-			grad_f[it_[s][r][2][n]] = -2*x[it_[s-1][r][2][n]] + 4*x[it_[s][r][2][n]] - 2*x[it_[s+1][r][2][n]];
-		}
-// 		for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-// 			grad_f[it_[0][r][1][n]] = 2*x[it_[0][r][1][n]] - 4*x[it_[1][r][1][n]] + 2*x[it_[2][r][1][n]];
-// 			grad_f[it_[1][r][1][n]] = -4 *x[it_[0][r][1][n]] + 8 * x[it_[1][r][1][n]] - 4*x[it_[2][r][1][n]] + 2*x[it_[1][r][1][n]] - 4*x[it_[2][r][1][n]] + 2*x[it_[3][r][1][n]];
-// 			grad_f[it_[nb_step_-2][r][1][n]] = -4 *x[it_[nb_step_-1][r][1][n]] + 8 * x[it_[nb_step_-2][r][1][n]] - 4*x[it_[nb_step_-3][r][1][n]] + 2*x[it_[nb_step_-4][r][1][n]] - 4*x[it_[nb_step_-3][r][1][n]] + 2*x[it_[nb_step_-2][r][1][n]];
-// 			grad_f[it_[nb_step_-1][r][1][n]] = 2*x[it_[nb_step_-3][r][1][n]] - 4*x[it_[nb_step_-2][r][1][n]] + 2*x[it_[nb_step_-1][r][1][n]];
-// 		}
-// 		for (s=2; s<nb_step_ - 2; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
-// 			grad_f[it_[s][r][1][n]] = -4*x[it_[s-1][r][1][n]] + 2*x[it_[s][r][1][n]] + 2*x[it_[s-2][r][1][n]] - 4*x[it_[s-1][r][1][n]] + 8*x[it_[s][r][1][n]] - 4*x[it_[s+1][r][1][n]] + 2*x[it_[s][r][1][n]] - 4*x[it_[s+1][r][1][n]] + 2*x[it_[s+2][r][1][n]];
-// 		}
-	}
-	else if (criteria_.compare("fitting") == 0) {
-		std::cout << "Fitting is not implemented yet" << std::endl;
-		exit(EXIT_FAILURE);
+	int s, r, n;
+	switch (criteria_) 
+	{
+		case NoCriteria:
+			break;
+		case Energy:
+			std::cout << "Energy is not implemented yet" << std::endl;
+			exit(EXIT_FAILURE);
+			break;
+		case TorqueSquare:    // minimize torque square
+			for (s=0; s<nb_step_; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n)
+				grad_f[it_[s][r][3][n]] = 2 * x[it_[s][r][3][n]] * integration_step_;
+			break;
+		case Jerk:            // minimize difference of acceleration one step to another
+			for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+				grad_f[it_[0][r][2][n]] = (2*x[it_[0][r][2][n]] - 2*x[it_[1][r][2][n]]) * integration_step_;
+				grad_f[it_[nb_step_-1][r][2][n]] = (2*x[it_[nb_step_-1][r][2][n]] - 2*x[it_[nb_step_-2][r][2][n]]) * integration_step_;
+			}
+			for (s=1; s<nb_step_ - 1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) {
+				grad_f[it_[s][r][2][n]] = (-2*x[it_[s-1][r][2][n]] + 4*x[it_[s][r][2][n]] - 2*x[it_[s+1][r][2][n]]) * integration_step_;
+			}
+			break;
+		case MotionCaptureFitting:
+			std::cout << "Fitting is not implemented yet" << std::endl;
+			exit(EXIT_FAILURE);
+			break;
 	}
 }
 
@@ -939,6 +953,8 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 	results->InsertEndChild (result);
 	doc_.SaveFile (xml_problem_filename_.c_str() );
 	std::cout << " status = "<< status << std::endl;  
+	
+	export_to_csv(x);
 }
 
 void Direct_Motion_Optimization_Holder::get_q_dq(int num_robot, std::vector<double> param, double time,
@@ -1055,6 +1071,90 @@ void Direct_Motion_Optimization_Holder::update_time_result_q_result(const double
 		time_result_[s] = t;
 		t += integration_step_;
 	}
+}
+
+void Direct_Motion_Optimization_Holder::export_to_csv(const double *x)
+{
+	// FIXME only one robot
+	int s,r,p,n,i,j;
+	std::ostringstream strs;
+	time_t uxtime = time(0);
+	int unix_time = uxtime;
+	strs << unix_time;
+	std::string crit = "\t";
+	std::vector<std::vector<double> > tmp_jerk;
+	std::vector<std::vector<double> > tmp_torque;
+	tmp_jerk.resize(nb_dofs_[0]);
+	tmp_torque.resize(nb_dofs_[0]);
+	double buf;
+	for (i=0; i<nb_dofs_[0]; ++i)
+	{
+		tmp_jerk[i].resize(nb_step_);
+		tmp_torque[i].resize(nb_step_);
+	}
+	// for torque calculus
+	for (i=0;i<nb_dofs_[0]; ++i)   // set first row
+		tmp_torque[i][0] = fabs(x[it_[0][0][3][i]]);
+	for (s=1;s<nb_step_; ++s)      // set all other rows
+		for (i=0;i<nb_dofs_[0]; ++i)
+			tmp_torque[i][s] = tmp_torque[i][s-1] + fabs(x[it_[s][0][3][i]]);
+	// for jerk calculus
+	for (i=0;i<nb_dofs_[0]; ++i)   // set first row
+		tmp_jerk[i][0] = 0.;
+	for (s=1;s<nb_step_; ++s)      // set all other rows
+		for (i=0;i<nb_dofs_[0]; ++i)
+		{
+			buf = x[it_[s-1][0][2][i]] - x[it_[s][0][2][i]];
+			tmp_jerk[i][s] = tmp_jerk[i][s-1] + buf * buf * integration_step_;
+		}
+	switch(criteria_)
+	{
+		case NoCriteria: crit = "None"; break;
+		case Energy: crit = "Energy"; break;
+		case TorqueSquare: crit = "TorqueSquare"; break;
+		case Jerk: crit = "Jerk"; break;
+		case MotionCaptureFitting: crit = "Fitting"; break;
+	}
+	std::string filename = strs.str() +"_save_robot-"+ Robots_[0]->getRobotName() +"_criteria-"+ crit +".csv";
+	std::ofstream myfile;
+	myfile.open(filename);
+	std::string sep = " "; // separator for csv file
+	// writing in file
+	for (p=0; p<4;++p) // for all parameters
+	{
+		for (s=0; s<nb_step_; ++s) // for all steps
+		{
+			std::ostringstream str1;
+			str1 << (integration_step_*s);
+			myfile << str1.str();
+			myfile << sep;
+			for (n=0;n<nb_dofs_[0]; ++n)
+			{
+				std::ostringstream str2;
+				str2 << x[it_[s][0][p][n]]; 
+				myfile << str2.str();
+				myfile << sep;
+			}
+			if (p == 2) for (n=0;n<nb_dofs_[0]; ++n)
+			{
+				std::ostringstream str3;
+				str3 << tmp_jerk[n][s]; 
+				myfile << str3.str();
+				myfile << sep;
+			}
+			if (p == 3) for (n=0;n<nb_dofs_[0]; ++n)
+			{
+				std::ostringstream str4;
+				str4 << tmp_torque[n][s]; 
+				myfile << str4.str();
+				myfile << sep;
+			}
+			myfile << "\n";
+		}
+		myfile << "\n";
+	}	
+	myfile.close();
+  
 }
 
 extern "C" Direct_Motion_Optimization_Holder* create() 
