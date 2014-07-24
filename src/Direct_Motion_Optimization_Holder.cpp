@@ -138,21 +138,41 @@ void Direct_Motion_Optimization_Holder::read_problem_specific (tinyxml2::XMLElem
 	}
 	// get constraint with time
 	tinyxml2::XMLElement *ElConstraint;
+	std::string buf_str;
 	for (ElConstraint = ElMotion->FirstChildElement ("constraint"); ElConstraint; ElConstraint = ElConstraint->NextSiblingElement("constraint"))
 	{
-		tinyxml2::XMLElement *ElConstraint_time = ElConstraint->FirstChildElement ("time");
-		constraint_time_.push_back(string_to_double(char_to_string(ElConstraint_time->GetText())));
-		tinyxml2::XMLElement *ElConstraint_name = ElConstraint->FirstChildElement ("name");
-		constraint_name_.push_back(char_to_string(ElConstraint_name->GetText()));
-		tinyxml2::XMLElement *ElConstraint_position = ElConstraint->FirstChildElement ("position");
-		std::istringstream iss (char_to_string(ElConstraint_position->GetText()),std::ios_base::in);
-		std::vector<double> v_tmp;
+		// get constraint time
+		buf_str = ElConstraint->Attribute("time");
+		constraint_time_.push_back(string_to_double(buf_str));
+		// get constraint robot name
+		buf_str = ElConstraint->Attribute("robot_name");
+		constraint_name_.push_back(buf_str);
+		// get constraint robot body
+		buf_str = ElConstraint->Attribute("robot_body");
+		constraint_body_.push_back(buf_str);
+		// get constraint type
+		buf_str = ElConstraint->Attribute("type");
+		constraint_type_.push_back(buf_str);
+		// get constraint option
+		tinyxml2::XMLElement *ElConstraint_option = ElConstraint->FirstChildElement ("option");
+		std::istringstream iss (char_to_string(ElConstraint_option->GetText()),std::ios_base::in);
+		std::vector<double> v_tmp_o;
 		while (iss) {
 			iss >> tmp;
-			v_tmp.push_back(tmp);
+			v_tmp_o.push_back(tmp);
 		}
-		v_tmp.pop_back();
-		constraint_position_.push_back(v_tmp);
+		v_tmp_o.pop_back();
+		constraint_option_.push_back(v_tmp_o);
+		// get constraint value
+		tinyxml2::XMLElement *ElConstraint_value = ElConstraint->FirstChildElement ("value");
+		std::istringstream iss2 (char_to_string(ElConstraint_value->GetText()),std::ios_base::in);
+		std::vector<double> v_tmp_v;
+		while (iss2) {
+			iss2 >> tmp;
+			v_tmp_v.push_back(tmp);
+		}
+		v_tmp_v.pop_back();
+		constraint_value_.push_back(v_tmp_v);
 	}
 	// get initial velocity
 	velocity_init_zero_ = false;
@@ -268,13 +288,13 @@ void Direct_Motion_Optimization_Holder::initialize ()
 		exit(-1);
 	}
 
-	for (int i=0; i<constraint_position_.size(); ++i)
+	for (int i=0; i<constraint_name_.size(); ++i)
 	{
 		if (((int)((constraint_time_[i]/integration_step_)*10))%10 != 0)
 		{
 			constraint_time_[i] = ceil(constraint_time_[i]/integration_step_)*integration_step_;
 			printf("\033[%sm","34"); // print in blue
-			std::cout << "Constraint's time n° " << i << " has been modified to fit the motion" << std::endl;
+			std::cout << "Time's constraint n° " << i << " has been modified to fit the motion" << std::endl;
 			printf("\033[%sm","0"); 
 		}
 		bool name_error = true;
@@ -284,6 +304,19 @@ void Direct_Motion_Optimization_Holder::initialize ()
 			{
 				constraint_robot_number_.push_back(r);
 				name_error = false;
+				bool body_error = true;
+				int body_id = Robots_[r]->GetBodyId(constraint_body_[i]); 
+				if (body_id != std::numeric_limits <unsigned int >::max()) {
+					constraint_body_number_.push_back(body_id);
+					body_error = false;
+				}
+				if (body_error)
+				{
+					printf("\033[%sm","31"); // print in red
+					std::cout << "The body \"" << constraint_body_[i] << "\" of robot \"" << constraint_name_[i] << "\" does not exist" << std::endl;
+					printf("\033[%sm","0"); 
+					exit(-1);  
+				}
 				break;
 			}
 		}
@@ -294,10 +327,10 @@ void Direct_Motion_Optimization_Holder::initialize ()
 			printf("\033[%sm","0"); 
 			exit(-1);  
 		}
-		if (constraint_position_[i].size() != nb_dofs_[constraint_robot_number_[i]])
+		if (constraint_option_[i].size() != 3 || constraint_value_[i].size() != 3)
 		{
 			printf("\033[%sm","31"); // print in red
-			std::cout << "Error when loading constraint's position for robot " << constraint_name_[i] << " in xml problem file : wrong arity" << std::endl;
+			std::cout << "Error when loading constraint's option or value for robot " << constraint_name_[i] << " in xml problem file : wrong arity (must be 3 for X Y Z in world frame)" << std::endl;
 			printf("\033[%sm","0"); 
 			exit(-1);
 		}
@@ -327,7 +360,6 @@ void Direct_Motion_Optimization_Holder::initialize ()
 		printf("\033[%sm","0"); 
 		exit(-1);
 	}
-	  
 	
 	std::cout << "cyclic_motion_ = " << cyclic_motion_ << std::endl;
 	
@@ -336,6 +368,9 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	
 	// set nb_ctr_
 	nb_ctr_ = total_nb_dofs_ * (nb_step_-1) * 3; // 2 for q, dq, ddq
+	
+	// ctr_ for constraint motion
+	nb_ctr_ += constraint_name_.size() * 3; // for X Y Z, wanted position
 	
 	if (cyclic_motion_)
 		nb_ctr_ += total_nb_dofs_ * 4; // 4 for q, dq, ddq, torque
@@ -350,6 +385,9 @@ void Direct_Motion_Optimization_Holder::initialize ()
 		nb_jac_non_null_ += 1 + 4 * nb_dofs_[r];
 	}
 	
+	for (int i=0; i<constraint_name_.size(); ++i)
+		nb_jac_non_null_ += nb_dofs_[constraint_robot_number_[i]] * 3;
+	
 	if (cyclic_motion_)
 		nb_jac_non_null_ += total_nb_dofs_ * 4 * 2;
 		
@@ -360,8 +398,6 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	for (int r=0;r<nb_robots_;++r)
 		Dyn_[r].SetRobot(Robots_[r]);
 
-	// FIXME fix floating base robot set_root_transformation with init position
-		
 	dyn_integrate_ = new Dynamics_Integrate<double>(nb_robots_, *env_, Dyn_);
 
 	// create Dyn_ and dyn_integrate for F<double>
@@ -519,34 +555,27 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 				printf("\033[%sm","0"); // reinitialize color
 				exit(-1);
 			}
-			for (int j=0; j<constraint_position_.size(); ++j)
-				if (constraint_robot_number_[j] == r)
-					if (p_l[i] > constraint_position_[j][i] || p_u[i] < constraint_position_[j][i])
-					{
-						printf("\033[%sm","31"); // print in red
-						std::cout << "Constraint's position " << i << " for robot " << constraint_name_[j] << ", does not fit with robot's bound" << std::endl;
-						printf("\033[%sm","0"); // reinitialize color
-						exit(-1);
-					}
 		}
 		/** end check */
 		for (s=0; s<nb_step_; ++s) for (n=0; n<nb_dofs_[r]; ++n) 
 		{   
-			x_l[it_[s][r][0][n]] = p_l[n];  // set bounds for q
-			x_u[it_[s][r][0][n]] = p_u[n];    
-			x_l[it_[s][r][1][n]] = -v_u[n]; // set bounds for dq       
-			x_u[it_[s][r][1][n]] = v_u[n];
-			x_l[it_[s][r][2][n]] = -1e20;   // set bounds for ddq
+			if (constraint_on_q_) {
+				x_l[it_[s][r][0][n]] = p_l[n];      // set bounds for q
+				x_u[it_[s][r][0][n]] = p_u[n];    
+			}
+			if (constraint_on_dq_) {
+				x_l[it_[s][r][1][n]] = -v_u[n];     // set bounds for dq       
+				x_u[it_[s][r][1][n]] = v_u[n];
+			}
+			x_l[it_[s][r][2][n]] = -1e20;               // set bounds for ddq
 			x_u[it_[s][r][2][n]] = 1e20;
 			
-			if (Robots_[r]->is_robot_floating_base() && n < 6 ) 
-			{
-				x_l[it_[s][r][3][n]] = 0;       // set bounds for torque
+			if (Robots_[r]->is_robot_floating_base() && n < 6 ) {
+				x_l[it_[s][r][3][n]] = 0;           // set bounds for torque
 				x_u[it_[s][r][3][n]] = 0;  
 			}
-			else 
-			{
-				x_l[it_[s][r][3][n]] = -t_u[n]; // set bounds for torque
+			else if (constraint_on_torques_) {
+				x_l[it_[s][r][3][n]] = -t_u[n];     // set bounds for torque
 				x_u[it_[s][r][3][n]] = t_u[n];
 			}
 		}
@@ -579,13 +608,6 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 				x_u[it_[nb_step_-1][r][1][n]] = 0;    
 			}
 		} // velocity none
-	}
-	
-	// fixe constraint bounds
-	for (i=0; i<constraint_position_.size(); ++i) for (int j=0; j<constraint_position_[i].size(); ++j)
-	{
-		x_l[it_[(int)(constraint_time_[i]/integration_step_)][constraint_robot_number_[i]][0][j]] = constraint_position_[i][j];
-		x_u[it_[(int)(constraint_time_[i]/integration_step_)][constraint_robot_number_[i]][0][j]] = constraint_position_[i][j];
 	}
 	
 	// g.size() = nb_ctr_
@@ -677,13 +699,7 @@ void Direct_Motion_Optimization_Holder::eval_grad_f (bool new_x, const double *x
 
 void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, double *g)
 {
-	//pour tous les intervalles de temps Ti
-	//recupere q,dq, (ddq, torque) => q_debut_i
-	// calcule (q_eps_i,dq_eps_i) = integration<double>( q_debut_i, dq_debut_i, ..., eps)
-	// la contrainte : q_eps_i - q_debut_i+1 = 0
-	// la contrainte : dq_eps_i - dq_debut_i+1 = 0
-	
-	int s, r, n;
+	int s, r, n, i, j;
 	int cpt_g = 0;
 	for (s=0; s<nb_step_ - 1; ++s) {          // Caution -1     // for all steps
 		for (r=0; r<nb_robots_; ++r) {                      // for all robots
@@ -706,6 +722,22 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 		}
 	}
 	
+	for (i=0; i<constraint_name_.size(); ++i)
+	{
+		Eigen::Matrix<double,Eigen::Dynamic,1> q_tmp;
+		q_tmp.resize(nb_dofs_[constraint_robot_number_[i]]);
+		for (j=0; j<nb_dofs_[constraint_robot_number_[i]]; ++j)
+			q_tmp(j) = x[it_[constraint_time_[i]][constraint_robot_number_[i]][0][j]];
+		
+		Eigen::Matrix<double,3,1> option (constraint_option_[i][0],constraint_option_[i][1],constraint_option_[i][2]);
+		
+		Eigen::Matrix<double,3,1> xyz_world = Dyn_[constraint_robot_number_[i]].CalcBodyToBaseCoordinates(q_tmp, constraint_body_number_[i], option, true);
+		
+		g[cpt_g++] = xyz_world(0) - constraint_value_[i][0];
+		g[cpt_g++] = xyz_world(1) - constraint_value_[i][1];
+		g[cpt_g++] = xyz_world(2) - constraint_value_[i][2];
+	}
+	
 	if (cyclic_motion_)
 	{
 		for (r=0; r<nb_robots_; ++r) for (int p=0; p<4; ++p) for (n=0; n<nb_dofs_[r]; ++n)
@@ -716,7 +748,7 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 void Direct_Motion_Optimization_Holder::get_dependencies (int *iRow, int *jCol)
 {
 	// In iRow, set ctr_ index, in jCol set param_ index
-	int s, r, p, n, k, cpt = 0;
+	int s, r, p, n, k, cpt = 0, i, j;
 	int cpt_g = 0;
 	for (s=0; s<nb_step_-1; ++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n) for (p=0;p<3;++p)
 	{
@@ -732,6 +764,18 @@ void Direct_Motion_Optimization_Holder::get_dependencies (int *iRow, int *jCol)
 			}
 		cpt_g++;
 	}
+	
+	for (i=0; i<constraint_name_.size(); ++i) for (j=0;j<3;++j)
+	{
+		for (int m=0; m<nb_dofs_[constraint_robot_number_[i]]; ++m) 
+		{
+			iRow[cpt] = cpt_g; 
+			jCol[cpt] = it_[constraint_time_[i]][constraint_robot_number_[i]][0][m];
+			cpt++;
+		}
+		cpt_g++;
+	}
+	
 	if (cyclic_motion_)
 	{
 		for (r=0; r<nb_robots_; ++r) for (int p=0; p<4; ++p) for (n=0; n<nb_dofs_[r]; ++n)
@@ -749,13 +793,7 @@ void Direct_Motion_Optimization_Holder::get_dependencies (int *iRow, int *jCol)
 
 void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x, double *values)
 {
-	//pour tous tes intervalles de temps Ti
-	//recupere q,dq, (ddq, torque) => q_debut_i
-	// calcule (q_eps_i,dq_eps_i) = integration<F<double> >( q_debut_i, dq_debut_i, ..., eps)
-	// la contrainte : q_eps_i - q_debut_i+1 = 0
-	// la contrainte : dq_eps_i - dq_debut_i+1 = 0      
-	
-	int s, r, p, n, i;
+	int s, r, p, n, i, j, k;
 	int cpt_diff, cpt = 0;
 	int cpt_diff_max;
 	F<double> contrainte_q, contrainte_dq, contrainte_ddq;
@@ -799,6 +837,28 @@ void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x
 			}
 		}
 	}
+	
+	for (i=0; i<constraint_name_.size(); ++i)
+	{
+		Eigen::Matrix<F<double>,Eigen::Dynamic,1> Fq_tmp;
+		Fq_tmp.resize(nb_dofs_[constraint_robot_number_[i]]);
+		for (j=0; j<nb_dofs_[constraint_robot_number_[i]]; ++j) {
+			Fq_tmp(j) = x[it_[constraint_time_[i]][constraint_robot_number_[i]][0][j]];
+			Fq_tmp(j).diff(j,nb_dofs_[constraint_robot_number_[i]]);
+		}
+		
+		Eigen::Matrix<F<double>,3,1> Foption ((F<double>)constraint_option_[i][0],(F<double>)constraint_option_[i][1],(F<double>)constraint_option_[i][2]);
+		
+		Eigen::Matrix<F<double>,3,1> Fxyz_world = FDyn_[constraint_robot_number_[i]].CalcBodyToBaseCoordinates(Fq_tmp, constraint_body_number_[i], Foption, true);
+		
+		for (k=0; k<nb_dofs_[constraint_robot_number_[i]]; ++k)
+			values[cpt++] = Fxyz_world(0).d(k);
+		for (k=0; k<nb_dofs_[constraint_robot_number_[i]]; ++k)
+			values[cpt++] = Fxyz_world(1).d(k);
+		for (k=0; k<nb_dofs_[constraint_robot_number_[i]]; ++k)
+			values[cpt++] = Fxyz_world(2).d(k);
+	}
+	
 	if (cyclic_motion_)
 	{
 		for (r=0; r<nb_robots_; ++r) for (int p=0; p<4; ++p) for (n=0; n<nb_dofs_[r]; ++n)
@@ -1094,10 +1154,10 @@ void Direct_Motion_Optimization_Holder::export_to_csv(const double *x)
 	}
 	// for torque calculus
 	for (i=0;i<nb_dofs_[0]; ++i)   // set first row
-		tmp_torque[i][0] = fabs(x[it_[0][0][3][i]]);
+		tmp_torque[i][0] = x[it_[0][0][3][i]] * x[it_[0][0][3][i]] * integration_step_;
 	for (s=1;s<nb_step_; ++s)      // set all other rows
 		for (i=0;i<nb_dofs_[0]; ++i)
-			tmp_torque[i][s] = tmp_torque[i][s-1] + fabs(x[it_[s][0][3][i]]);
+			tmp_torque[i][s] = tmp_torque[i][s-1] + x[it_[s][0][3][i]] * x[it_[s][0][3][i]] * integration_step_;
 	// for jerk calculus
 	for (i=0;i<nb_dofs_[0]; ++i)   // set first row
 		tmp_jerk[i][0] = 0.;

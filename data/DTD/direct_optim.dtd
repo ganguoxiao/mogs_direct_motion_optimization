@@ -30,8 +30,14 @@
 <!ELEMENT init_posture (#PCDATA)>
 <!ELEMENT final_posture (#PCDATA)>
 
-<!ELEMENT constraint (time, name, position)>
-<!ELEMENT time (#PCDATA)>
+<!ELEMENT constraint (option, value)>
+<!ELEMENT option (#PCDATA)>
+<!ELEMENT value (#PCDATA)>
+<!ATTLIST constraint
+	time CDATA #REQUIRED
+	robot_name CDATA #REQUIRED
+	robot_body CDATA #REQUIRED
+	type CDATA #REQUIRED>
 
 <!ELEMENT init_velocity (#PCDATA)>
 <!ELEMENT final_velocity (#PCDATA)>
