@@ -292,11 +292,13 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	{
 		if (((int)((constraint_time_[i]/integration_step_)*10))%10 != 0)
 		{
-			constraint_time_[i] = ceil(constraint_time_[i]/integration_step_)*integration_step_;
+			constraint_time_[i] = ceil(constraint_time_[i]/integration_step_);
 			printf("\033[%sm","34"); // print in blue
 			std::cout << "Time's constraint n° " << i << " has been modified to fit the motion" << std::endl;
 			printf("\033[%sm","0"); 
 		}
+		else 
+			constraint_time_[i] = constraint_time_[i]/integration_step_;
 		bool name_error = true;
 		for (int r=0; r<nb_robots_; ++r)
 		{
@@ -334,7 +336,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 			printf("\033[%sm","0"); 
 			exit(-1);
 		}
-		if (constraint_time_[i] >= motion_duration_ || constraint_time_[i] == 0)
+		if (constraint_time_[i] >= motion_duration_ / integration_step_ || constraint_time_[i] == 0)
 		{
 			printf("\033[%sm","31"); // print in red
 			std::cout << "Error when loading constraint's time for robot " << constraint_name_[i] << " in xml problem file : time must be between the beginning and the end of the motion" << std::endl;
@@ -369,7 +371,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	// set nb_ctr_
 	nb_ctr_ = total_nb_dofs_ * (nb_step_-1) * 3; // 2 for q, dq, ddq
 	
-	// ctr_ for constraint motion
+	// ctr_ for constraint position
 	nb_ctr_ += constraint_name_.size() * 3; // for X Y Z, wanted position
 	
 	if (cyclic_motion_)
