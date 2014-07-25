@@ -563,9 +563,17 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 				x_l[it_[s][r][0][n]] = p_l[n];      // set bounds for q
 				x_u[it_[s][r][0][n]] = p_u[n];    
 			}
+			else {
+				x_l[it_[s][r][0][n]] = -1e20;
+				x_u[it_[s][r][0][n]] = 1e20;
+			}
 			if (constraint_on_dq_) {
 				x_l[it_[s][r][1][n]] = -v_u[n];     // set bounds for dq       
 				x_u[it_[s][r][1][n]] = v_u[n];
+			}
+			else {
+				x_l[it_[s][r][1][n]] = -1e20;
+				x_u[it_[s][r][1][n]] = 1e20;
 			}
 			x_l[it_[s][r][2][n]] = -1e20;               // set bounds for ddq
 			x_u[it_[s][r][2][n]] = 1e20;
@@ -577,6 +585,10 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 			else if (constraint_on_torques_) {
 				x_l[it_[s][r][3][n]] = -t_u[n];     // set bounds for torque
 				x_u[it_[s][r][3][n]] = t_u[n];
+			}
+			else {
+				x_l[it_[s][r][3][n]] = -1e20;
+				x_u[it_[s][r][3][n]] = 1e20;
 			}
 		}
 	}
