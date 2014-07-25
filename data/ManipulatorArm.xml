@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MultiBody scalable="no" base="fixed">
+<Robot_type> ManipulatorArm </Robot_type>
+<Bodies>
+	<Body>
+		<Label>waist</Label>
+		<Mass unit="kg">10</Mass>
+		<CoM unit="m"> 0.0 0.0 0.0</CoM>
+		<Inertia unit="kg/s2"> 0.08 0.0 0.0 0.0 0.08 0.0 0.0 0.0 0.08 </Inertia>
+		<Geometry>
+		  <Box>
+			<Color> 255 0 0	</Color> 
+		    <Box_X unit="m"> -0.1	0.1</Box_X>
+		    <Box_Y unit="m"> -0.1	0.1</Box_Y>
+		    <Box_Z unit="m"> -0.1	0.1</Box_Z>
+		  </Box>
+		</Geometry>
+	</Body>
+	
+	<Body>
+		<Label>thigh</Label>
+		<Mass unit="kg">3</Mass>
+		<CoM unit="m"> 0.0 0.0 0.1</CoM>
+		<Inertia unit="kg/s2"> 0.041875 0.0 0.0 0.0 0.041875 0.0 0.0 0.0 0.00375 </Inertia>
+		<Geometry>
+		  <Cylinder>
+			  <Color> 0 255 240	</Color> 
+		    <Radius unit="m"> 0.05</Radius>
+		    <Height unit="m"> 0.2</Height>	    
+		  </Cylinder>
+		</Geometry>
+	</Body>	
+	
+	<Body>
+		<Label>shin</Label>
+		<Mass unit="kg">3</Mass>
+		<CoM unit="m"> 0.0 0.0 0.1</CoM>
+		<Inertia unit="kg/s2"> 0.041875 0.0 0.0 0.0 0.041875 0.0 0.0 0.0 0.00375 </Inertia>
+		<Geometry>
+		  <Cylinder>
+			  <Color> 0 240 255	</Color> 
+		    <Radius unit="m"> 0.05</Radius>
+		    <Height unit="m"> 0.2</Height>	    
+		  </Cylinder>
+		</Geometry>
+	</Body>	
+	
+	<Body>
+		<Label>foot</Label>
+		<Mass unit="kg">2</Mass>
+		<CoM unit="m"> 0.0 0.0 0.05</CoM>
+		<Inertia unit="kg/s2"> 0.010075 0.0 0.0 0.0 0.010075 0.0 0.0 0.0 0.00015 </Inertia>
+		<Geometry>
+		  <Cylinder>
+			  <Color> 0 0 255	</Color> 
+		    <Radius unit="m"> 0.01</Radius>
+		    <Height unit="m"> 0.1</Height>
+		    </Cylinder>
+		</Geometry>
+	</Body>	
+ </Bodies>
+ <Joints>
+	<Joint type="revolute" axis="z" innerId="waist" outerId="thigh">
+		<Label>hip</Label>
+		<StaticParameters unit_translation="m" unit_rotation="degree"> 0 0 0.1 0 0 0</StaticParameters>
+		<PositionMin unit="degree"> -180  </PositionMin>
+		<PositionMax unit="degree"> 180 </PositionMax>
+		<SpeedLimit unit="degree/s"> 180 </SpeedLimit>
+		<TorqueLimit unit="Nm"> 200 </TorqueLimit>
+	</Joint>
+
+	<Joint type="revolute" axis="y" innerId="thigh" outerId="shin">
+		<Label>knee</Label>
+		<StaticParameters unit_translation="m" unit_rotation="degree"> 0 0 0.2 0 0 0</StaticParameters>
+		<PositionMin unit="degree"> -180  </PositionMin>
+		<PositionMax unit="degree"> 180 </PositionMax>
+		<SpeedLimit unit="degree/s"> 180 </SpeedLimit>
+		<TorqueLimit unit="Nm"> 200 </TorqueLimit>
+	</Joint>
+	
+	<Joint type="revolute" axis="x" innerId="shin" outerId="foot">
+		<Label>ankle</Label>
+		<StaticParameters unit_translation="m" unit_rotation="degree"> 0 0 0.2 0 0 0</StaticParameters>
+		<PositionMin unit="degree"> -180  </PositionMin>
+		<PositionMax unit="degree"> 180 </PositionMax>
+		<SpeedLimit unit="degree/s"> 180 </SpeedLimit>
+		<TorqueLimit unit="Nm"> 200 </TorqueLimit>
+	</Joint>
+ </Joints>
+</MultiBody>

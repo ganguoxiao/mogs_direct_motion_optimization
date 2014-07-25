@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<problem type="DirectMotionOptimization">
+    <robot>
+        <!-- You can add how many robots you want, by their name if they are
+register -->
+        <!-- in the project or their URL and with their contact properties file-->
+        <!--         <name>Hopping</name> -->
+        <name> ManipulatorArm </name>
+        <position>        0 0 1 </position>
+        <rotation>        0 0 3.14</rotation>
+    </robot>
+    <environment>
+        <!-- You can add environment files (for the moment it will be used only -->
+        <!-- for the visualization but futures works will used it for collisions -->
+        <name>floor</name>
+    </environment>
+    <solver>
+        <!--For the moment we can use only the IPOPT solver.-->
+        <name>IPOPT</name>
+        <!-- option = "name" in string -->
+        <!-- type = (integer|double|string) -->
+        <options option="derivativ_test" type="string"> first-order </options>
+    </solver>
+    <parameters>
+        <constraint_on_q>yes</constraint_on_q>
+        <!-- (yes|no) -->
+        <constraint_on_dq>yes</constraint_on_dq>
+        <!-- (yes|no) -->
+        <coeff_dq_max>1.0</coeff_dq_max>
+        <optim_motion_duration>no</optim_motion_duration>
+        <!-- for the moment no -->
+        <constraint_on_torques>no</constraint_on_torques>
+        <!-- for the moment no -->
+        <criteria>jerk</criteria>
+        <!-- (none|energy|jerk|fitting|torquesquare) -->
+        <parallelization>no_thread</parallelization>
+        <!-- (no_thread|multi_thread) -->
+        <integration_step> 0.01</integration_step>
+    </parameters>
+    <motion>
+        <!-- (robots dof double values e.g 0.5 0 0 0 1.2 etc...) -->
+        <!--        <init_posture> 0 0 0.5 0 0 0 0 0 0 </init_posture>
+        <final_posture> 0 0 0.5 0 0 0 0 0 0 </final_posture>-->
+        <init_posture> 0 0 0 </init_posture>
+        <final_posture> 0 0 0  </final_posture>
+        <!-- add constraints -->
+        <!-- time = 1 is the maximal duration 		 -->
+        <constraint time="1" robot_name="ManipulatorArm" robot_body="foot" type="position">
+            <option>0 0 0.1</option>
+            <value>0.2 0.1 1.2</value>
+        </constraint>
+        <!--        <constraint time="2" robot_name="ManipulatorArm" robot_body="foot" type="position">
+            <option>0 0 0.1</option>
+            <value>-0.2 0.1 1.2</value>
+        </constraint>
+        <constraint time="3" robot_name="ManipulatorArm" robot_body="foot" type="position">
+            <option>0 0 0.1</option>
+            <value>-0.2 0.1 1.4</value>
+        </constraint>
+        <constraint time="4" robot_name="ManipulatorArm" robot_body="foot" type="position">
+            <option>0 0 0.1</option>
+            <value>0.2 0.1 1.4</value>
+        </constraint>-->
+        <!-- (none|zero|robots dof double values e.g 0.5 0 0 0 1.2 etc...) -->
+        <init_velocity> none </init_velocity>
+        <final_velocity> none </final_velocity>
+        <!-- (yes|no) -->
+        <cyclic_motion>no</cyclic_motion>
+        <!-- only real dof -->
+        <motion_duration> 5 </motion_duration>
+    </motion>
+    <results/>
+</problem>
