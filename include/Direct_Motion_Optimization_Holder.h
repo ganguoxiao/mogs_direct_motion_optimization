@@ -105,6 +105,7 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	int pit(int robot, int nbdof);
 	
 	void export_to_csv(const double *x);
+	void affiche_torque(const double *x);
 	
 	protected:
 	
@@ -145,6 +146,7 @@ class Direct_Motion_Optimization_Holder:public Optimization_Holder
 	double nb_step_;
 	int total_nb_dofs_;
 
+	double max_torque_;
 	
 	// dynamics
 	std::vector<RigidBodyDynamics::Dynamics<double> > Dyn_;

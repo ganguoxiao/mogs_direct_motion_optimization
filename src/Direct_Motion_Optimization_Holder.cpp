@@ -294,7 +294,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 		{
 			constraint_time_[i] = ceil(constraint_time_[i]/integration_step_);
 			printf("\033[%sm","34"); // print in blue
-			std::cout << "Time's constraint n° " << i << " has been modified to fit the motion" << std::endl;
+			std::cout << "Time's constraint n° " << i << " has been modified to fit the motion. New value  : " << constraint_time_[i] <<  std::endl;
 			printf("\033[%sm","0"); 
 		}
 		else 
@@ -372,7 +372,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	nb_ctr_ = total_nb_dofs_ * (nb_step_-1) * 3; // 2 for q, dq, ddq
 	
 	// ctr_ for constraint position
-	nb_ctr_ += constraint_name_.size() * 3; // for X Y Z, wanted position
+	nb_ctr_ += constraint_name_.size() * 3 * 2; // for X Y Z, wanted position and null velocity for each
 	
 	if (cyclic_motion_)
 		nb_ctr_ += total_nb_dofs_ * 4; // 4 for q, dq, ddq, torque
@@ -388,7 +388,7 @@ void Direct_Motion_Optimization_Holder::initialize ()
 	}
 	
 	for (int i=0; i<constraint_name_.size(); ++i)
-		nb_jac_non_null_ += nb_dofs_[constraint_robot_number_[i]] * 3;
+		nb_jac_non_null_ += nb_dofs_[constraint_robot_number_[i]] * 9; // 3 for position, 6 for velocity
 	
 	if (cyclic_motion_)
 		nb_jac_non_null_ += total_nb_dofs_ * 4 * 2;
@@ -561,31 +561,31 @@ void Direct_Motion_Optimization_Holder::get_bounds_info (double *x_l, double *x_
 		/** end check */
 		for (s=0; s<nb_step_; ++s) for (n=0; n<nb_dofs_[r]; ++n) 
 		{   
-			if (constraint_on_q_) {
-				x_l[it_[s][r][0][n]] = p_l[n];      // set bounds for q
+			if (constraint_on_q_) {                               // set bounds for q
+				x_l[it_[s][r][0][n]] = p_l[n];     
 				x_u[it_[s][r][0][n]] = p_u[n];    
 			}
 			else {
 				x_l[it_[s][r][0][n]] = -1e20;
 				x_u[it_[s][r][0][n]] = 1e20;
 			}
-			if (constraint_on_dq_) {
-				x_l[it_[s][r][1][n]] = -v_u[n];     // set bounds for dq       
+			if (constraint_on_dq_) {                              // set bounds for dq
+				x_l[it_[s][r][1][n]] = -v_u[n];           
 				x_u[it_[s][r][1][n]] = v_u[n];
 			}
 			else {
 				x_l[it_[s][r][1][n]] = -1e20;
 				x_u[it_[s][r][1][n]] = 1e20;
 			}
-			x_l[it_[s][r][2][n]] = -1e20;               // set bounds for ddq
+			x_l[it_[s][r][2][n]] = -1e20;                          // set bounds for ddq
 			x_u[it_[s][r][2][n]] = 1e20;
 			
-			if (Robots_[r]->is_robot_floating_base() && n < 6 ) {
-				x_l[it_[s][r][3][n]] = 0;           // set bounds for torque
+			if (Robots_[r]->is_robot_floating_base() && n < 6 ) {  // set bounds for torque
+				x_l[it_[s][r][3][n]] = 0;          
 				x_u[it_[s][r][3][n]] = 0;  
 			}
 			else if (constraint_on_torques_) {
-				x_l[it_[s][r][3][n]] = -t_u[n];     // set bounds for torque
+				x_l[it_[s][r][3][n]] = -t_u[n];     
 				x_u[it_[s][r][3][n]] = t_u[n];
 			}
 			else {
@@ -738,10 +738,16 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 	
 	for (i=0; i<constraint_name_.size(); ++i)
 	{
+		// constraint for position
 		Eigen::Matrix<double,Eigen::Dynamic,1> q_tmp;
+		Eigen::Matrix<double,Eigen::Dynamic,1> dq_tmp;
 		q_tmp.resize(nb_dofs_[constraint_robot_number_[i]]);
+		dq_tmp.resize(nb_dofs_[constraint_robot_number_[i]]);
 		for (j=0; j<nb_dofs_[constraint_robot_number_[i]]; ++j)
-			q_tmp(j) = x[it_[constraint_time_[i]][constraint_robot_number_[i]][0][j]];
+		{
+			q_tmp(j) = x[it_[constraint_time_[i]][constraint_robot_number_[i]][0][j]];  // get position
+			dq_tmp(j) = x[it_[constraint_time_[i]][constraint_robot_number_[i]][1][j]]; // get velocity
+		}
 		
 		Eigen::Matrix<double,3,1> option (constraint_option_[i][0],constraint_option_[i][1],constraint_option_[i][2]);
 		
@@ -750,6 +756,14 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 		g[cpt_g++] = xyz_world(0) - constraint_value_[i][0];
 		g[cpt_g++] = xyz_world(1) - constraint_value_[i][1];
 		g[cpt_g++] = xyz_world(2) - constraint_value_[i][2];
+		
+		// constraint for null velocity
+		Eigen::Matrix <double, 3, 1 > vel_world = Dyn_[constraint_robot_number_[i]].CalcPointVelocity (q_tmp, dq_tmp, constraint_body_number_[i],option, true);
+		
+		g[cpt_g++] = vel_world(0);
+		g[cpt_g++] = vel_world(1);
+		g[cpt_g++] = vel_world(2);
+		
 	}
 	
 	if (cyclic_motion_)
@@ -757,6 +771,8 @@ void Direct_Motion_Optimization_Holder::eval_g (bool new_x, const double *x, dou
 		for (r=0; r<nb_robots_; ++r) for (int p=0; p<4; ++p) for (n=0; n<nb_dofs_[r]; ++n)
 			g[cpt_g++] = x[it_[0][r][p][n]] - x[it_[nb_step_-1][r][p][n]];
 	}
+	
+// 	affiche_torque(x);
 }
 
 void Direct_Motion_Optimization_Holder::get_dependencies (int *iRow, int *jCol)
@@ -779,15 +795,34 @@ void Direct_Motion_Optimization_Holder::get_dependencies (int *iRow, int *jCol)
 		cpt_g++;
 	}
 	
-	for (i=0; i<constraint_name_.size(); ++i) for (j=0;j<3;++j)
+	for (i=0; i<constraint_name_.size(); ++i) 
 	{
-		for (int m=0; m<nb_dofs_[constraint_robot_number_[i]]; ++m) 
+		for (j=0;j<3;++j)   // x y z for position
 		{
-			iRow[cpt] = cpt_g; 
-			jCol[cpt] = it_[constraint_time_[i]][constraint_robot_number_[i]][0][m];
-			cpt++;
+			for (int m=0; m<nb_dofs_[constraint_robot_number_[i]]; ++m) 
+			{
+				iRow[cpt] = cpt_g; 
+				jCol[cpt] = it_[constraint_time_[i]][constraint_robot_number_[i]][0][m];
+				cpt++;
+			}
+			cpt_g++;
 		}
-		cpt_g++;
+		for (j=0;j<3;++j)   
+		{
+			for (int m=0; m<nb_dofs_[constraint_robot_number_[i]]; ++m) // x y z for velocity 
+			{
+				iRow[cpt] = cpt_g; 
+				jCol[cpt] = it_[constraint_time_[i]][constraint_robot_number_[i]][0][m];
+				cpt++;
+			}
+			for (int m=0; m<nb_dofs_[constraint_robot_number_[i]]; ++m) // dx, dy, dz for velocity
+			{
+				iRow[cpt] = cpt_g; 
+				jCol[cpt] = it_[constraint_time_[i]][constraint_robot_number_[i]][1][m];
+				cpt++;
+			}
+			cpt_g++;
+		}
 	}
 	
 	if (cyclic_motion_)
@@ -856,21 +891,35 @@ void Direct_Motion_Optimization_Holder::eval_grad_g (bool new_x, const double *x
 	{
 		Eigen::Matrix<F<double>,Eigen::Dynamic,1> Fq_tmp;
 		Fq_tmp.resize(nb_dofs_[constraint_robot_number_[i]]);
+		Eigen::Matrix<F<double>,Eigen::Dynamic,1> Fdq_tmp;
+		Fdq_tmp.resize(nb_dofs_[constraint_robot_number_[i]]);
+		int cpt_fd = 0;
 		for (j=0; j<nb_dofs_[constraint_robot_number_[i]]; ++j) {
 			Fq_tmp(j) = x[it_[constraint_time_[i]][constraint_robot_number_[i]][0][j]];
-			Fq_tmp(j).diff(j,nb_dofs_[constraint_robot_number_[i]]);
+			Fq_tmp(j).diff(cpt_fd++,2*nb_dofs_[constraint_robot_number_[i]]);
+		}
+		for (j=0; j<nb_dofs_[constraint_robot_number_[i]]; ++j) {
+			Fdq_tmp(j) = x[it_[constraint_time_[i]][constraint_robot_number_[i]][1][j]];
+			Fdq_tmp(j).diff(cpt_fd++,2*nb_dofs_[constraint_robot_number_[i]]);
 		}
 		
 		Eigen::Matrix<F<double>,3,1> Foption ((F<double>)constraint_option_[i][0],(F<double>)constraint_option_[i][1],(F<double>)constraint_option_[i][2]);
 		
 		Eigen::Matrix<F<double>,3,1> Fxyz_world = FDyn_[constraint_robot_number_[i]].CalcBodyToBaseCoordinates(Fq_tmp, constraint_body_number_[i], Foption, true);
 		
-		for (k=0; k<nb_dofs_[constraint_robot_number_[i]]; ++k)
-			values[cpt++] = Fxyz_world(0).d(k);
-		for (k=0; k<nb_dofs_[constraint_robot_number_[i]]; ++k)
-			values[cpt++] = Fxyz_world(1).d(k);
-		for (k=0; k<nb_dofs_[constraint_robot_number_[i]]; ++k)
-			values[cpt++] = Fxyz_world(2).d(k);
+		Eigen::Matrix<F<double>,3,1> Fdxyz_world = FDyn_[constraint_robot_number_[i]].CalcPointVelocity(Fq_tmp, Fdq_tmp, constraint_body_number_[i], Foption, true);
+		
+		for (int j=0; j<3; j++)
+			for (k=0; k<nb_dofs_[constraint_robot_number_[i]]; ++k)
+				values[cpt++] = Fxyz_world(j).d(k);
+
+		for (int j=0; j<3; j++)
+		{
+			for (k=0; k<nb_dofs_[constraint_robot_number_[i]]; ++k)
+				values[cpt++] = Fdxyz_world(j).d(k);
+			for (k=0; k<nb_dofs_[constraint_robot_number_[i]]; ++k)
+				values[cpt++] = Fdxyz_world(j).d(k+nb_dofs_[constraint_robot_number_[i]]);
+		}	
 	}
 	
 	if (cyclic_motion_)
@@ -1027,6 +1076,24 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 	results->InsertEndChild (result);
 	doc_.SaveFile (xml_problem_filename_.c_str() );
 	std::cout << " status = "<< status << std::endl;  
+	
+// 	std::cout << "max torque = "  << max_torque_ << std::endl;
+	
+	for (int i=0; i<constraint_name_.size(); ++i)
+	{
+		Eigen::Matrix<double,Eigen::Dynamic,1> q_tmp;
+		q_tmp.resize(nb_dofs_[constraint_robot_number_[i]]);
+		for (int j=0; j<nb_dofs_[constraint_robot_number_[i]]; ++j)
+			q_tmp(j) = x[it_[constraint_time_[i]][constraint_robot_number_[i]][0][j]];
+		
+		Eigen::Matrix<double,3,1> option (constraint_option_[i][0],constraint_option_[i][1],constraint_option_[i][2]);
+		
+		Eigen::Matrix<double,3,1> xyz_world = Dyn_[constraint_robot_number_[i]].CalcBodyToBaseCoordinates(q_tmp, constraint_body_number_[i], option, true);
+		
+		printf("\033[%sm","31"); // print in red
+		std::cout << "actual pos = " << xyz_world(0) << " " << xyz_world(1) << " "  << xyz_world(2) << std::endl;
+		printf("\033[%sm","0");
+	}
 	
 	export_to_csv(x);
 }
@@ -1230,6 +1297,16 @@ void Direct_Motion_Optimization_Holder::export_to_csv(const double *x)
 	myfile.close();
   
 }
+
+void Direct_Motion_Optimization_Holder::affiche_torque(const double *x)
+{
+	int s, r, n;
+	max_torque_ = 0;
+	for (s=0; s< nb_step_;++s) for (r=0; r<nb_robots_; ++r) for (n=0; n<nb_dofs_[r]; ++n)
+		if (fabs(max_torque_) < fabs(x[it_[s][r][3][n]]))
+			max_torque_ = x[it_[s][r][3][n]];
+}
+
 
 extern "C" Direct_Motion_Optimization_Holder* create() 
 {
