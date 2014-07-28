@@ -958,54 +958,48 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 	
 	std::cout.precision(10);
 	std::ostringstream X,oss;
-// 	for (int i=0;i<nb_param_;i++)
-// 		X << std::setprecision(20)<< x[i]<<" ";
-// 	std::string s = X.str();
+	for (int i=0;i<nb_param_;i++)
+		X << std::setprecision(20)<< x[i]<<" ";
+	std::string s = X.str();
 	
-	tinyxml2::XMLNode * Elnbparam = doc_.NewElement ("nbparam");	
-	oss << nb_param_;
-	std::string s1 = oss.str();
-	tinyxml2::XMLText * nbparam = doc_.NewText ( s1.c_str());
-	Elnbparam->InsertEndChild (nbparam);
-	result->InsertEndChild (Elnbparam);	
+// 	tinyxml2::XMLNode * Elnbparam = doc_.NewElement ("nbparam");	
+// 	oss << nb_param_;
+// 	std::string s1 = oss.str();
+// 	tinyxml2::XMLText * nbparam = doc_.NewText ( s1.c_str());
+// 	Elnbparam->InsertEndChild (nbparam);
+// 	result->InsertEndChild (Elnbparam);	
 	
 // 	tinyxml2::XMLNode * Elparam = doc_.NewElement ("param");	
 // 	tinyxml2::XMLText * param = doc_.NewText ( s.c_str() );
 // 	Elparam->InsertEndChild (param);
 // 	result->InsertEndChild (Elparam);
+
+	tinyxml2::XMLElement * Elparam = doc_.NewElement ("param");	
+	Elparam->SetAttribute("nb_param",nb_param_);
+	tinyxml2::XMLText * param = doc_.NewText ( s.c_str() );
+	Elparam->InsertEndChild (param);
+	result->InsertEndChild (Elparam);
 	
 	for(int s=0;s<nb_step_;s++)
 	{
 		
-		tinyxml2::XMLElement * Elvalue_q = doc_.NewElement ("q");
-		Elvalue_q->SetAttribute("time",integration_step_ * s);
-		
+		tinyxml2::XMLElement * Elvalue = doc_.NewElement ("log");
+		Elvalue->SetAttribute("time",integration_step_ * s);
 		for (int k=0; k < nb_robots_; k++)
 		{
 			std::ostringstream oss_q;
 			if ( k ==0)	// FIXME for the moment only one robot
 				for (int j=0;j<nb_dofs_[k];j++)
 				{
-					oss_q << q_result_[s](j)<< " ";
+					oss_q << x[it_[s][k][0][j]] << " ";
 				}
 
-			tinyxml2::XMLElement *xml_q = doc_.NewElement ("Qrobot");
-			xml_q->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
+			tinyxml2::XMLElement *xml_q = doc_.NewElement ("q");
+			xml_q->SetAttribute("robot",(Robots_[k]->getRobotName()).c_str());
 			tinyxml2::XMLText *xml_text = doc_.NewText ( oss_q.str().c_str());
 			xml_q->InsertEndChild (xml_text);
-			Elvalue_q->InsertEndChild (xml_q);
-		}  
-		
-		result->InsertEndChild (Elvalue_q);  
-	}
+			Elvalue->InsertEndChild (xml_q);
 
-	for(int s=0;s<nb_step_;s++)
-	{		
-		tinyxml2::XMLElement * Elvalue_dq = doc_.NewElement ("dq");
-		Elvalue_dq->SetAttribute("time",integration_step_ * s);
-
-		for (int k=0; k < nb_robots_; k++)
-		{
 			std::ostringstream oss_dq;
 			if ( k ==0)	// FIXME for the moment only one robot
 				for (int j=0;j<nb_dofs_[k];j++)
@@ -1013,25 +1007,12 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 					oss_dq << x[it_[s][k][1][j]] << " ";
 				}
 
-			tinyxml2::XMLElement *xml_dq = doc_.NewElement ("Qrobot");
-			xml_dq->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
-			tinyxml2::XMLText *xml_text_dq = doc_.NewText ( oss_dq.str().c_str());
-			xml_dq->InsertEndChild (xml_text_dq);
-			Elvalue_dq->InsertEndChild (xml_dq);
-		}
-		
-		result->InsertEndChild (Elvalue_dq);  
-	}
-	
-	/** It is useless to stored acceleration because we are in the MGD, it is redundant */
-	// but it is more human readable
-	for(int s=0;s<nb_step_;s++)
-	{
-		tinyxml2::XMLElement * Elvalue_ddq = doc_.NewElement ("ddq");
-		Elvalue_ddq->SetAttribute("time",integration_step_ * s);
+			tinyxml2::XMLElement *xml_dq = doc_.NewElement ("dq");
+			xml_dq->SetAttribute("robot",(Robots_[k]->getRobotName()).c_str());
+			xml_text = doc_.NewText ( oss_dq.str().c_str());
+			xml_dq->InsertEndChild (xml_text);
+			Elvalue->InsertEndChild (xml_dq);			
 
-		for (int k=0; k < nb_robots_; k++)
-		{
 			std::ostringstream oss_ddq;
 			if ( k ==0)	// FIXME for the moment only one robot
 				for (int j=0;j<nb_dofs_[k];j++)
@@ -1039,38 +1020,27 @@ void Direct_Motion_Optimization_Holder::this_is_final_results (const double *x, 
 					oss_ddq << x[it_[s][k][2][j]] << " ";
 				}
 
-			tinyxml2::XMLElement *xml_ddq = doc_.NewElement ("Qrobot");
-			xml_ddq->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
-			tinyxml2::XMLText *xml_text_ddq = doc_.NewText ( oss_ddq.str().c_str());
-			xml_ddq->InsertEndChild (xml_text_ddq);
-			Elvalue_ddq->InsertEndChild (xml_ddq);
-		}    
+			tinyxml2::XMLElement *xml_ddq = doc_.NewElement ("ddq");
+			xml_ddq->SetAttribute("robot",(Robots_[k]->getRobotName()).c_str());
+			xml_text = doc_.NewText ( oss_ddq.str().c_str());
+			xml_ddq->InsertEndChild (xml_text);
+			Elvalue->InsertEndChild (xml_ddq);
 		
-		result->InsertEndChild (Elvalue_ddq); 
-	}
-	
-	for(int s=0;s<nb_step_;s++)
-	{		
-		tinyxml2::XMLElement * Elvalue_tau = doc_.NewElement ("tau");
-		Elvalue_tau->SetAttribute("time",integration_step_ * s);
-
-		for (int k=0; k < nb_robots_; k++)
-		{
 			std::ostringstream oss_tau;
 			if ( k ==0)	// FIXME for the moment only one robot
 				for (int j=0;j<nb_dofs_[k];j++)
 				{
-					oss_tau <<  x[it_[s][k][3][j]] << " ";
+					oss_tau << x[it_[s][k][3][j]] << " ";
 				}
-			
-			tinyxml2::XMLElement *xml_tau = doc_.NewElement ("Qrobot");
-			xml_tau->SetAttribute("name",(Robots_[k]->getRobotName()).c_str());
-			tinyxml2::XMLText *xml_text_tau = doc_.NewText ( oss_tau.str().c_str());
-			xml_tau->InsertEndChild (xml_text_tau);
-			Elvalue_tau->InsertEndChild (xml_tau);
-		}    		
-		
-		result->InsertEndChild (Elvalue_tau);  
+
+			tinyxml2::XMLElement *xml_tau = doc_.NewElement ("tau");
+			xml_tau->SetAttribute("robot",(Robots_[k]->getRobotName()).c_str());
+			xml_text = doc_.NewText ( oss_tau.str().c_str());
+			xml_tau->InsertEndChild (xml_text);
+			Elvalue->InsertEndChild (xml_tau);
+		}  
+		result->InsertEndChild (Elvalue);  
+
 	}
 	
 	results->InsertEndChild (result);
@@ -1173,9 +1143,11 @@ void Direct_Motion_Optimization_Holder::get_result_param(const std::string resul
 		tinyxml2::XMLElement * Elname = result->FirstChildElement ("result_name");
 		if ( result_name ==  char_to_string(Elname->GetText()))
 		{
+			// FIXME
 			tinyxml2::XMLElement * Elnb = result->FirstChildElement ("nbparam");
 			int nb = string_to_int(Elnb->GetText());
 			tinyxml2::XMLElement * Elparam = result->FirstChildElement ("param");
+			Elparam->SetAttribute("nb_param",nb_param_);
                         
                         std::cerr<< __FILE__<< __LINE__<<" Call of get_result_param "<<std::endl; // FIXIT
 			std::string sparam = char_to_string( Elparam->GetText()); // FIXIT
